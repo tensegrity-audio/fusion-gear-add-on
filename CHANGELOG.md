@@ -2,6 +2,12 @@
 
 Changes describe source capabilities. Native Fusion verification is tracked separately in [docs/VERIFICATION.md](docs/VERIFICATION.md).
 
+## Installation guide clarification - 2026-09-16
+
+- Made Documents/FusionAddins/fusion-gear-add-on the default repository location and direct Fusion folder linking the recommended installation route.
+- Added step-by-step ZIP instructions, Documents-aware Windows Git commands, migration from Downloads or the user-profile root, update/rollback instructions, and current/older Fusion dialog guidance.
+- Documented the reported System32 permissions problem, hidden file extensions, missing PowerShell menu actions, failed clones and stale duplicate add-in copies. Existing installer scripts remain optional alternatives using Fusion's default AddIns directory.
+
 ## 0.1.1 startup compatibility fix - 2026-09-16
 
 - Replaced dotted toolbar command and palette identifiers with ASCII letters, digits and underscores after a Windows user reported `RuntimeError: 3 : invalid id` in `addButtonDefinition` during startup.

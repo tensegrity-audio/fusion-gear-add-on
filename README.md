@@ -23,23 +23,18 @@ The [verification record](docs/VERIFICATION.md) separates completed automated ch
 
 ## Get started
 
-1. On [GitHub](https://github.com/tensegrity-audio/fusion-gear-add-on), choose **Code > Download ZIP** and extract it, or clone the repository. Open the extracted repository folder containing this README and the two installers, then close Fusion.
-2. Run `install_windows.ps1` on Windows or `install_macos.command` on macOS. Manual installation is also supported. See [installation instructions](docs/INSTALL.md).
-3. Start Fusion, open **Utilities > Add-Ins > Scripts and Add-Ins**, and run **GearStudio** from the **Add-Ins** tab. Enable **Run on Startup** if desired.
-4. Open a parametric design. The Gear Studio panel opens when the add-in starts; its toolbar command reopens it.
-5. Choose **Spur**, enter a name and settings, review the checks, and generate the gear. Start with the default values for your first Fusion verification.
-6. Select its body or component and choose **Edit** in the selection area to change it. Save the Fusion document to retain its gear definition.
+**Keep Gear Studio in `Documents\FusionAddins\fusion-gear-add-on`.** The recommended installation links this folder inside Fusion. No PowerShell installer, Git or separate Python installation is needed for the ZIP route.
 
-Fusion supplies the Python runtime and modeling API. No package manager, external Python installation, network connection or account service is needed by the add-in itself. Normal Fusion licensing and access requirements still apply.
+1. Save your designs and close Fusion. On [GitHub](https://github.com/tensegrity-audio/fusion-gear-add-on), choose **Code > Download ZIP**, then use **Extract All** in File Explorer.
+2. Find the extracted folder that directly contains `README.md` and the inner `GearStudio` folder. Move that repository folder into **Documents > FusionAddins** and name it **fusion-gear-add-on**. Create FusionAddins if needed.
+3. Start Fusion and open **Utilities > Add-Ins > Scripts and Add-Ins**. Choose **+ > Script or add-in from device** and select **Documents > FusionAddins > fusion-gear-add-on > GearStudio**. In the older dialog, use the **Add-Ins** tab's **+** button.
+4. Select **GearStudio**, click **Run**, and optionally enable **Run on Startup**. Keep the linked folder in Documents.
+5. Open a new Part or Hybrid design with **Capture Design History** enabled. Start with the default **Spur** settings for your first verification.
+6. Select the generated body or component and choose **Edit** in Gear Studio to change it. Save the Fusion document to retain its gear definition.
 
-For a Git checkout:
+**[Full installation instructions](docs/INSTALL.md)** include the exact folder checks, Windows Git commands that locate your configured Documents folder, moving an existing copy, updates, macOS and troubleshooting. If the destination already exists, use the update or move instructions instead of overwriting it. The `.ps1` and `.command` installers are optional alternatives that copy to a different location; they are not part of the recommended Documents setup.
 
-```sh
-git clone https://github.com/tensegrity-audio/fusion-gear-add-on.git
-cd fusion-gear-add-on
-```
-
-Install or register the inner **`GearStudio`** folder. The repository folder is not itself the Fusion add-in. A successful GitHub Actions run also provides a packaged artifact under its **Artifacts** section; see [installation options](docs/INSTALL.md#get-the-files).
+Fusion supplies the Python runtime and modeling API. Normal Fusion licensing and access requirements still apply. The [packaged evaluation artifact](docs/INSTALL.md#packaged-artifacts) is another download option.
 
 ## What is included
 

@@ -4,9 +4,11 @@ Start with the [architecture](docs/ARCHITECTURE.md), [roadmap](docs/ROADMAP.md) 
 
 ## Development setup
 
+The default checkout location is **Documents/FusionAddins/fusion-gear-add-on**. On Windows, use the [Documents-aware Git commands](docs/INSTALL.md#windows-git-alternative); on macOS, use the [macOS setup](docs/INSTALL.md#macos). Keep future user-facing installation examples consistent with this location. Avoid bare clone commands that depend on the terminal starting in a writable folder.
+
+From that repository directory:
+
 ```sh
-git clone https://github.com/tensegrity-audio/fusion-gear-add-on.git
-cd fusion-gear-add-on
 python -m unittest discover -s tests -v
 python tools/package.py --check
 ```
