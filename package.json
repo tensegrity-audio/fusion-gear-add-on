@@ -1,0 +1,13 @@
+{
+  "name": "fusion-gear-add-on",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Development checks for the Gear Studio Autodesk Fusion add-in",
+  "license": "MIT",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "check:ui": "node --check GearStudio/ui/app.js && node --check GearStudio/ui/demo.js",
+    "test:ui": "node tests/test_ui.cjs"
+  },
+  "devDependencies": { "playwright": "1.62.1" }
+}

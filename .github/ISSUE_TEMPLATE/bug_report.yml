@@ -1,0 +1,34 @@
+name: Gear generation or editing problem
+description: Report a reproducible failure in Gear Studio.
+title: "[Bug] "
+body:
+  - type: input
+    id: versions
+    attributes:
+      label: Fusion, operating system, and Gear Studio versions
+      placeholder: Fusion build number, Windows/macOS version, Gear Studio version or commit
+    validations:
+      required: true
+  - type: textarea
+    id: settings
+    attributes:
+      label: Gear type and parameter expressions
+      description: Include the exact expressions and any referenced user parameters, or attach a minimal sample design you can share.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps and result
+      description: Explain whether this happened during creation, editing, parameter update, cancellation, or reopening. Include the error text and whether the previous gear was retained.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshot or relevant log excerpt
+      description: Share only the relevant excerpt. Remove private design information from files or logs before attaching them.
