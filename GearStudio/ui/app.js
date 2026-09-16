@@ -2,7 +2,41 @@
   'use strict';
   const $ = (id) => document.getElementById(id);
   const clone = (value) => JSON.parse(JSON.stringify(value));
-  const state = { catalog: null, spec: null, presets: [], selection: null, mode: 'create', host: 'fusion', supportedKinds: [], drafts: {}, valid: false, busy: false, request: 0, actions: {}, validationRequest: null, validationTimer: null, timeout: null };
+  const options = new URLSearchParams(window.location.search);
+  const previewMode = options.get('preview') === '1' && options.get('host') !== 'fusion';
+  const expectedHost = previewMode ? 'preview' : 'fusion';
+  const state = { catalog: null, spec: null, presets: [], selection: null, mode: 'create', host: 'connecting', connected: false, supportedKinds: [], drafts: {}, valid: false, busy: false, request: 0, actions: {}, validationRequest: null, validationTimer: null, timeout: null };
+  let connectionTimer, connectionDeadline;
+
+  function transport() {
+    if (previewMode) return window.gearStudioPreview && window.gearStudioPreview.send.bind(window.gearStudioPreview);
+    if (window.adsk && typeof window.adsk.fusionSendData === 'function') return window.adsk.fusionSendData.bind(window.adsk);
+    return null;
+  }
+  function startConnection() {
+    clearTimeout(connectionTimer); clearTimeout(state.timeout); clearTimeout(state.validationTimer);
+    state.connected = false; state.valid = false; state.host = 'connecting';
+    connectionDeadline = Date.now() + 15000;
+    $('host-label').textContent = previewMode ? 'Loading interface preview' : 'Connecting to Fusion';
+    $('retry-connection').hidden = true;
+    setFooter(previewMode ? 'Loading interface preview' : 'Connecting to Fusion', 'Waiting for the panel connection.', 'checking');
+    renderActions();
+    function poll() {
+      if (state.connected) return;
+      if (Date.now() >= connectionDeadline) {
+        state.host = 'disconnected';
+        $('host-label').textContent = 'Not connected';
+        $('retry-connection').hidden = false;
+        setFooter('Connection unavailable', previewMode ? 'Reload the locally served interface preview.' : 'Open Gear Studio from Scripts and Add-Ins in Fusion, then retry the connection.', 'error');
+        renderActions();
+        return;
+      }
+      // Only the read-only handshake is retried. Never replay build or edit actions.
+      if (transport()) send('ready');
+      if (!state.connected) connectionTimer = setTimeout(poll, 500);
+    }
+    poll();
+  }
   const groups = [
     { label: 'EXTERNAL GEARS', ids: ['spur', 'helical', 'herringbone'] },
     { label: 'INTERNAL GEARS', ids: ['internal_spur', 'internal_helical', 'internal_herringbone'] },
@@ -19,10 +53,12 @@
     if (state.request > 200) delete state.actions['gs-' + (state.request - 200)];
     const data = Object.assign({ requestId }, payload || {});
     try {
-      if (!window.adsk || typeof window.adsk.fusionSendData !== 'function') throw new Error('The Fusion connection is unavailable.');
-      const pending = window.adsk.fusionSendData(action, JSON.stringify(data));
-      if (pending && typeof pending.catch === 'function') pending.catch((error) => showError(error.message || String(error)));
-    } catch (error) { showError(error.message || String(error)); }
+      if (action !== 'ready' && !state.connected) throw new Error('Wait for the Fusion connection before using this action.');
+      const deliver = transport();
+      if (!deliver) throw new Error('The Fusion connection is unavailable.');
+      const pending = deliver(action, JSON.stringify(data));
+      if (pending && typeof pending.catch === 'function') pending.catch((error) => { if (action !== 'ready') showError(error.message || String(error)); });
+    } catch (error) { if (action !== 'ready') showError(error.message || String(error)); }
     return requestId;
   }
   function familyFor(kind) { return state.catalog && state.catalog.families.find((f) => f.id === kind); }
@@ -142,20 +178,20 @@
     $('selection-help').textContent = selected ? selected.stale ? 'Parameters changed. Use Update from Parameters to rebuild.' : 'Existing definition available for editing or duplication.' : 'Select a Gear Studio body or component in Fusion to edit it.';
     $('selection-dot').classList.toggle('selected', Boolean(selected));
     $('selection-dot').classList.toggle('stale', Boolean(selected && selected.stale));
-    ['edit-selected', 'duplicate-selected', 'update-selected'].forEach((id) => { $(id).disabled = !selected || state.busy; });
+    ['edit-selected', 'duplicate-selected', 'update-selected'].forEach((id) => { $(id).disabled = !selected || state.busy || !state.connected || state.host !== 'fusion'; });
   }
   function renderActions() {
     const supported = Boolean(state.spec && state.supportedKinds.includes(state.spec.kind));
-    $('build-gear').disabled = !state.valid || state.busy || !supported || state.host === 'preview';
+    $('build-gear').disabled = !state.valid || state.busy || !supported || !state.connected || state.host !== 'fusion';
     $('build-label').textContent = state.busy ? 'Working in Fusion' : state.mode === 'edit' ? 'Update gear' : 'Create gear';
-    $('save-preset').disabled = !state.valid || state.busy;
-    $('new-gear').disabled = state.busy || !state.spec;
-    $('load-last').disabled = state.busy || !state.spec;
-    $('refresh-selection').disabled = state.busy || state.host === 'preview';
-    $('open-parameters').disabled = state.busy || state.host === 'preview';
+    $('save-preset').disabled = !state.valid || state.busy || !state.connected;
+    $('new-gear').disabled = state.busy || !state.spec || !state.connected;
+    $('load-last').disabled = state.busy || !state.spec || !state.connected;
+    $('refresh-selection').disabled = state.busy || !state.connected || state.host !== 'fusion';
+    $('open-parameters').disabled = state.busy || !state.connected || state.host !== 'fusion';
     $('cancel-build').hidden = !state.busy;
     $('progress-wrap').hidden = !state.busy;
-    $('gear-name').disabled = state.busy;
+    $('gear-name').disabled = state.busy || !state.connected;
     renderSelection();
   }
   function scheduleValidation(delay) {
@@ -270,6 +306,13 @@
   function toast(message, error) { clearTimeout(toastTimer); $('toast').textContent = message; $('toast').className = 'toast' + (error ? ' error' : ''); $('toast').hidden = false; toastTimer = setTimeout(() => { $('toast').hidden = true; }, error ? 11000 : 6000); }
   function showError(message) { clearTimeout(state.timeout); setBusy(false); state.valid = false; renderActions(); setFooter('Action could not finish', message, 'error'); toast(message, true); }
   function applyState(data) {
+    // A native panel can never be downgraded to the browser adapter. Ignore
+    // late duplicate ready replies so they cannot reset an edit or active build.
+    if (data.host !== expectedHost || state.host === 'disconnected' || !transport()) return;
+    if (state.connected && data.requestId && state.actions[data.requestId] === 'ready') return;
+    if (!data.catalog || !data.spec) throw new Error('The panel connection returned an incomplete configuration.');
+    state.connected = true; clearTimeout(connectionTimer);
+    $('retry-connection').hidden = true;
     if (data.catalog) state.catalog = data.catalog;
     if (data.supportedKinds) state.supportedKinds = data.supportedKinds;
     if (data.host) state.host = data.host;
@@ -308,7 +351,7 @@
 
   $('gear-name').addEventListener('input', () => { if (state.spec) { state.spec.name = $('gear-name').value; scheduleValidation(); } });
   $('gear-form').addEventListener('submit', (event) => { event.preventDefault(); if (!$('build-gear').disabled) $('build-gear').click(); });
-  $('build-gear').addEventListener('click', () => { if (!state.valid || state.busy || state.host === 'preview') return; const spec = clone(state.spec); setBusy(true); send('build', { spec }); });
+  $('build-gear').addEventListener('click', () => { if (!state.connected || !state.valid || state.busy || state.host !== 'fusion') return; const spec = clone(state.spec); setBusy(true); send('build', { spec }); });
   $('cancel-build').addEventListener('click', () => { $('cancel-build').disabled = true; $('cancel-build').textContent = 'Cancelling…'; setFooter('Cancellation requested', 'Fusion can stop between modeling operations.', 'busy'); send('cancel'); });
   $('new-gear').addEventListener('click', () => { if (!state.spec || state.busy) return; state.drafts[state.spec.kind] = clone(state.spec); state.spec = defaultSpec(state.spec.kind); state.mode = 'create'; renderConfiguration(); scheduleValidation(0); send('loadLast', { kind: state.spec.kind }); });
   $('load-last').addEventListener('click', () => { if (state.spec && !state.busy) send('loadLast', { kind: state.spec.kind }); });
@@ -321,5 +364,6 @@
   $('dismiss-preset').addEventListener('click', () => $('preset-dialog').close());
   $('preset-form').addEventListener('submit', (event) => { event.preventDefault(); const name = $('preset-name').value.trim(); if (!name || !state.valid) return; $('preset-dialog').close(); send('savePreset', { name, spec: clone(state.spec) }); });
   $('preset-dialog').addEventListener('click', (event) => { if (event.target === $('preset-dialog')) { const bounds = $('preset-dialog').getBoundingClientRect(); if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) $('preset-dialog').close(); } });
-  send('ready');
+  $('retry-connection').addEventListener('click', startConnection);
+  startConnection();
 }());

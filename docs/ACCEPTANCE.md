@@ -1,11 +1,13 @@
 # Live Fusion acceptance checklist
 
-**Status: incomplete.** A Windows startup failure was reported for 0.1.0; the 0.1.1 correction awaits native confirmation. The remaining checklist is pending live execution. Host-independent Python tests and browser rendering checks cannot establish that Fusion's modeling kernel, palettes, document transactions or installation paths work on a specific release.
+**Status: incomplete.** Windows reports include the 0.1.0 command-ID failure and a subsequent preview/connection failure. The 0.1.2 connection correction awaits native confirmation. The remaining checklist is pending live execution. Host-independent Python tests and browser rendering checks cannot establish that Fusion's modeling kernel, palettes, document transactions or installation paths work on a specific release.
 
 ## Reported failure and retest
 
 - 2026-09-16, Griffin, Windows, directly linked extracted repository: Fusion loaded the entry point, then command registration failed with `RuntimeError: 3 : invalid id`. Full Fusion and OS versions were not supplied.
 - 0.1.1 changes the dotted command/palette IDs to letters, digits and underscores. Retest startup, toolbar reopening, stop/start and Run on Startup using the updated copy. Native retest result: **Pending**.
+
+- Subsequent Windows screenshot: the panel opens with Interface preview and the native unsupported-action error; installed revision was not provided. Version 0.1.2 isolates preview mode and ignores host acknowledgements. Live handshake and default Spur creation retest: **Pending**.
 
 Run this checklist on both supported desktop platforms before calling a release host-verified. Use disposable designs and keep the tested release ZIP and checksum with the results.
 
@@ -24,7 +26,9 @@ Record **Pass**, **Fail**, or **Not run** for each case, with the design file an
 
 ## Installation and interface
 
-- [ ] Close Fusion, install into the default user AddIns folder without administrator access, and load GearStudio.
+- [ ] Close Fusion, put the repository in Documents/FusionAddins, link its inner GearStudio folder and run it without administrator access. Separately check the optional installer-managed layout if distributing those scripts.
+- [ ] Confirm the native panel changes from Connecting to Fusion to Autodesk Fusion, never Interface preview; default Spur validates and Create gear produces a B-rep in the active design.
+- [ ] Confirm startup and subsequent field edits do not produce unsupported `response` errors. If the bridge cannot connect, verify the bounded timeout and Retry connection control.
 - [ ] Confirm the panel opens, closes and reopens from its toolbar command.
 - [ ] Restart Fusion with Run on Startup enabled; confirm one working command and panel, without duplicate handlers.
 - [ ] Resize the panel at narrow and wide widths; labels, expressions, validation and build/cancel controls remain usable.

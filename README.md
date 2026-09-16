@@ -117,6 +117,6 @@ To inspect the interface outside Fusion, serve its directory locally:
 python -m http.server 8765 --bind 127.0.0.1 --directory GearStudio/ui
 ```
 
-Open [the local interface preview](http://127.0.0.1:8765). Opening `index.html` directly is insufficient because the preview loads a local JSON file. The browser preview shows the supplied example configurations and disables native solid creation; changed expressions require Fusion validation. Its example presets use browser local storage independently of Fusion settings. Stop the server with Ctrl+C.
+Open [the local interface preview](http://127.0.0.1:8765/?preview=1). The `?preview=1` flag explicitly enables the browser adapter. Without it, the page waits for Fusion and does not create a fake connection. Opening `index.html` directly is insufficient because the preview loads a local JSON file. The browser preview shows the supplied example configurations and disables native solid creation; changed expressions require Fusion validation. Its example presets use browser local storage independently of Fusion settings. Stop the server with Ctrl+C.
 
 Original Gear Studio code is MIT licensed. Adapted geometry code retains the full upstream Study Gears license in `GearStudio/vendor/study_gears/LICENSE.txt`. See that directory's provenance notice for the imported revision and changes.

@@ -22,6 +22,30 @@ Gear Studio separates expressions and preflight checks from expensive native geo
 | `tests/` | Host-independent checks; host substitutes are not Fusion kernel certification |
 | `tools/package.py` | Standard-library release packaging and checksums |
 
+## Palette connection
+
+The native palette opens `index.html?host=fusion`. Its incoming HTML handler is
+registered before the palette becomes visible. JavaScript waits up to 15 seconds
+for the injected `adsk.fusionSendData` bridge and a `state` reply to its `ready`
+request. Missing or lost startup messages trigger only another read-only `ready`
+request, at 500 ms intervals. Creation stays disabled until that handshake and
+input validation succeed. On timeout, polling stops and a visible Retry
+connection action starts another bounded attempt.
+
+Ready replies carry the request ID. Late duplicate startup replies are ignored
+after connection so they cannot reset a draft or active build. Build, update and
+other mutating actions are never replayed by the connection loop.
+
+The explicit browser preview (`?preview=1`) uses `gearStudioPreview.send`, not a
+fake `adsk` object. A native session takes precedence over that flag. The native
+page never loads sample preview data or falls back to preview because Fusion is
+slow to inject its bridge.
+
+Fusion can emit a `response` event when `sendInfoToHTML` completes. The handler
+ignores this acknowledgement before JSON decoding or application dispatch.
+Treating it as an unknown command would report an error back to HTML, producing
+another acknowledgement. See [Autodesk's palette sample](https://help.autodesk.com/cloudhelp/ENU/Fusion-360-API/files/PaletteSample_Sample.htm).
+
 ## Definition and units
 
 Definitions are versioned JSON-compatible objects. They retain expression text separately from evaluated values:

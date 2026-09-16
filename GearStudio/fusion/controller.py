@@ -137,6 +137,12 @@ class _HtmlHandler(adsk.core.HTMLEventHandler):
         self.owner = owner
 
     def notify(self, args):
+        # Qt sends an acknowledgement when sendInfoToHTML returns. Its payload
+        # is not a Gear Studio request (it may just be "OK"). Reporting an error
+        # here would itself produce another acknowledgement and error loop.
+        if args.action == "response":
+            args.returnData = "OK"
+            return
         try:
             if len(args.data.encode("utf-8")) > MAX_MESSAGE_BYTES:
                 raise StudioError("The request is too large. Shorten the parameter expressions.")
@@ -219,10 +225,12 @@ class Controller:
             self.send_state()
             return
         url = (Path(__file__).resolve().parents[1] / "ui" / "index.html").as_uri()
-        self.palette = self.ui.palettes.add(PALETTE_ID, "Gear Studio", url, True, True, True, 1160, 800, True)
+        url += "?host=fusion"
+        self.palette = self.ui.palettes.add(PALETTE_ID, "Gear Studio", url, False, True, True, 1160, 800, True)
         handler = _HtmlHandler(self)
         self.palette.incomingFromHTML.add(handler)
         self.handlers.append(handler)
+        self.palette.isVisible = True
 
     def design(self):
         design = adsk.fusion.Design.cast(self.app.activeProduct)
@@ -267,7 +275,7 @@ class Controller:
             return None
         return None
 
-    def send_state(self, spec=None):
+    def send_state(self, spec=None, request_id=None):
         if spec is not None:
             self.spec = deepcopy(spec)
         if self.spec is None:
@@ -282,6 +290,8 @@ class Controller:
             "mode": "edit" if self.spec.get("id") else "create",
             "supportedKinds": sorted(SUPPORTED_KINDS), "host": "fusion",
         }
+        if request_id is not None:
+            payload["requestId"] = request_id
         self.send("state", payload)
 
     def safe_presets(self):
@@ -323,7 +333,7 @@ class Controller:
             return
         try:
             if action == "ready":
-                self.send_state()
+                self.send_state(request_id=request_id)
             elif action == "validate":
                 self.validate_for_ui(data.get("spec"), request_id)
             elif action == "build":
@@ -345,7 +355,9 @@ class Controller:
             elif action == "openParameters":
                 self.open_parameters()
             else:
-                raise StudioError("This action is not available in this version of Gear Studio.")
+                self.log.warning("Unsupported palette action: %r", str(action)[:80])
+                raise StudioError("Unsupported Gear Studio panel action: " + repr(str(action)[:80])
+                                  + ". Stop and restart the add-in after updating its files.")
         except Exception as exc:
             self.report_error(exc, request_id)
 

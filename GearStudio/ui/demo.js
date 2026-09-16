@@ -4,7 +4,9 @@
  */
 (function () {
   'use strict';
-  if (window.adsk && typeof window.adsk.fusionSendData === 'function') return;
+  // Preview is an explicit development mode, never a missing-bridge fallback.
+  const options = new URLSearchParams(window.location.search);
+  if (options.get('preview') !== '1' || options.get('host') === 'fusion') return;
   let data, current, loading, presets = [];
   const clone = (value) => JSON.parse(JSON.stringify(value));
   const emit = (action, payload) => setTimeout(() => { if (window.fusionJavaScriptHandler) window.fusionJavaScriptHandler.handle(action, JSON.stringify(payload)); }, 30);
@@ -21,7 +23,8 @@
     if (same) { const result = clone(sample.validation); result.requestId = requestId; emit('validation', result); }
     else emit('validation', { requestId, valid: false, issues: [{ field: '', code: 'preview_host', severity: 'warning', message: 'Changed expressions are validated inside Fusion. Restore last used to explore the checked example for this gear type.' }], metrics: {}, cost: {}, preview: null });
   }
-  window.adsk = { fusionSendData: async function (action, jsonString) {
+  // Never assign window.adsk: Fusion injects and owns that object asynchronously.
+  window.gearStudioPreview = { send: async function (action, jsonString) {
     const payload = JSON.parse(jsonString || '{}');
     try {
       await load();

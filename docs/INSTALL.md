@@ -225,6 +225,33 @@ Logs are stored beside `settings.json` as `GearStudio.log` with bounded rotating
 | Two GearStudio entries appear, or an update seems unchanged | Inspect their displayed paths. Stop and unlink the stale linked copy; move any old automatically discovered `API/AddIns/GearStudio` copy aside with Fusion closed. Restart Fusion and run only the Documents copy. |
 | Fusion reports a missing folder after moving files | Unlink the old entry and add the new inner GearStudio folder. |
 
+### The panel says Interface preview inside Fusion, or reports an unavailable action
+
+This was a connection defect in versions before 0.1.2. The browser adapter could
+start before Fusion injected its live connection, and the Python handler could
+mistake a host acknowledgement for an unsupported action.
+
+1. Save your designs and fully close Fusion.
+2. Follow [Update an installation](#update-an-installation) for the actual folder
+   Fusion loads. Use `git pull --ff-only` from the Documents checkout if you
+   cloned it, or replace the ZIP copy as described there.
+3. Check that `GearStudio.manifest` shows version **0.1.2** or later.
+4. Reopen Fusion and run GearStudio from Scripts and Add-Ins. The top-right label
+   should change from **Connecting to Fusion** to **Autodesk Fusion**, with no
+   Interface preview banner.
+5. In a new Part or Hybrid design with design history enabled, leave the default
+   Spur values, wait for validation, and click **Create gear**. The intended
+   result is a B-rep body in the active Fusion design.
+
+Version 0.1.2 waits up to 15 seconds for the native connection, then displays a
+persistent message and **Retry connection** if it is still unavailable. It never
+silently switches to preview. If the native label still does not appear, or
+creation fails, preserve the full error, the installed folder path and the Fusion
+version. Live confirmation of this correction remains pending.
+
+Developers can deliberately open the local web preview with `?preview=1`; that
+mode cannot create native solids.
+
 ### Startup reports `RuntimeError: 3 : invalid id`
 
 A traceback ending in `controller.py` at `addButtonDefinition` means Fusion found and loaded the add-in. Version 0.1.0 used dotted command IDs; 0.1.1 replaces them with letters, digits and underscores. Native confirmation of this correction is still pending.

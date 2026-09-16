@@ -2,6 +2,14 @@
 
 Changes describe source capabilities. Native Fusion verification is tracked separately in [docs/VERIFICATION.md](docs/VERIFICATION.md).
 
+## 0.1.2 palette connection fix - 2026-09-16
+
+- Fixed the native panel entering interface-preview mode when Fusion's asynchronous bridge was not ready during page load. Preview is now explicit (`?preview=1`) and uses its own transport without creating or replacing `window.adsk`.
+- Added a bounded native handshake, a visible Retry connection action, and correlated startup replies. Only the read-only handshake retries; builds are never automatically replayed and late startup replies cannot reset a build.
+- Ignore Fusion's `response` acknowledgement before parsing request JSON, preventing the unsupported-action/error feedback loop. Unknown user actions now include their action name in diagnostics.
+- Register the incoming handler before showing the native palette, and mark its URL as a Fusion session.
+- Added regression checks for acknowledgements, invalid-message feedback, delayed bridge injection, lost ready messages, connection timeout/retry, preview isolation and Create gear message delivery. Native B-rep creation still requires confirmation in Fusion.
+
 ## Installation guide clarification - 2026-09-16
 
 - Made Documents/FusionAddins/fusion-gear-add-on the default repository location and direct Fusion folder linking the recommended installation route.

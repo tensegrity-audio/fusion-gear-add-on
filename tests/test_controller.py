@@ -6,12 +6,14 @@ They do not execute Autodesk geometry or certify native Fusion event ordering.
 
 from copy import deepcopy
 import importlib.util
+import json
 from pathlib import Path
 import re
 import sys
 from types import ModuleType, SimpleNamespace
 import unittest
 from unittest import mock
+from urllib.parse import parse_qs, urlsplit
 import uuid
 
 
@@ -128,6 +130,50 @@ class ControllerTests(unittest.TestCase):
         self.assertFalse(self.controller.committing)
         self.assertEqual(self.candidate.cleanup_count, 1)
 
+    def test_html_response_acknowledgements_are_not_dispatched_or_decoded(self):
+        owner = SimpleNamespace(dispatch=mock.Mock(), report_error=mock.Mock())
+        handler = self.module._HtmlHandler(owner)
+        for payload in ("OK", "", "{}", "[]", None):
+            with self.subTest(payload=payload):
+                args = SimpleNamespace(action="response", data=payload)
+                handler.notify(args)
+                self.assertEqual(args.returnData, "OK")
+        owner.dispatch.assert_not_called()
+        owner.report_error.assert_not_called()
+
+    def test_html_error_acknowledgement_does_not_create_an_error_loop(self):
+        owner = SimpleNamespace(dispatch=mock.Mock(), report_error=mock.Mock())
+        handler = self.module._HtmlHandler(owner)
+        acknowledgement = SimpleNamespace(action="response", data="OK")
+        owner.report_error.side_effect = lambda error: handler.notify(acknowledgement)
+        request = SimpleNamespace(action="build", data="invalid JSON")
+        handler.notify(request)
+        owner.report_error.assert_called_once()
+        owner.dispatch.assert_not_called()
+        self.assertEqual(request.returnData, "ERROR")
+        self.assertEqual(acknowledgement.returnData, "OK")
+
+    def test_html_ready_response_correlates_the_handshake(self):
+        self.controller.spec = deepcopy(self.spec)
+        args = SimpleNamespace(action="ready", data=json.dumps({"requestId": "gs-1"}))
+        self.module._HtmlHandler(self.controller).notify(args)
+        self.assertEqual(args.returnData, "OK")
+        self.assertEqual(len(self.events), 1)
+        event, payload = self.events[0]
+        self.assertEqual(event, "state")
+        self.assertEqual(payload["host"], "fusion")
+        self.assertEqual(payload["requestId"], "gs-1")
+        self.builder.assert_not_called()
+
+    def test_html_build_request_reaches_candidate_preparation(self):
+        args = SimpleNamespace(action="build", data=json.dumps({"spec": self.spec, "requestId": "gs-2"}))
+        self.module._HtmlHandler(self.controller).notify(args)
+        self.assertEqual(args.returnData, "OK")
+        self.builder.assert_called_once()
+        self.command_definition.execute.assert_called_once()
+        self.assertIs(self.controller.pending.candidate, self.candidate)
+        self.controller._finish_pending()
+
     def test_start_registers_compatible_ui_ids_and_stop_removes_them(self):
         # Exercise startup through its API boundary. Permissive mocks previously
         # missed Fusion rejecting the dotted command IDs reported on Windows.
@@ -160,7 +206,9 @@ class ControllerTests(unittest.TestCase):
         def add_palette(identity, name, url, *options):
             check_identity(identity)
             self.assertTrue(url.startswith("file:"))
-            self.assertTrue(url.endswith("/ui/index.html"))
+            self.assertTrue(urlsplit(url).path.endswith("/ui/index.html"))
+            self.assertEqual(parse_qs(urlsplit(url).query)["host"], ["fusion"])
+            self.assertFalse(options[0], "Register incomingFromHTML before showing the palette.")
             palette = SimpleNamespace(
                 isVisible=True, incomingFromHTML=Event(),
                 deleteMe=lambda: palettes.pop(identity),
