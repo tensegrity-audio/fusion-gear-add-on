@@ -3,7 +3,6 @@ from __future__ import annotations
 from .guard import checkpoint
 from collections.abc import Callable
 import math
-from typing import override
 from .vector import Vector
 
 Translation = tuple[float, float, float, float, float, float]
@@ -99,33 +98,26 @@ class Line(Segment):
         self._length = (end - start).norm()
 
     @property
-    @override
     def start(self):
         return self._start
 
     @property
-    @override
     def end(self):
         return self._end
 
     @property
-    @override
     def length(self) -> float:
         return self._length
 
-    @override
     def point_at(self, t: float) -> Vector:
         return self.start + self._tangent * t
 
-    @override
     def tangent_at(self, t: float) -> Vector:
         return self._tangent
 
-    @override
     def translate(self, v: Vector) -> "Line":
         return Line(self.start + v, self.end + v)
 
-    @override
     def rotate(self, angle: float, origin: Vector | None = None) -> "Line":
         return Line(self.start.rotate(angle, origin), self.end.rotate(angle, origin))
 
@@ -141,35 +133,28 @@ class Arc(Segment):
         self._length = abs(end_angle - start_angle) * radius
 
     @property
-    @override
     def start(self) -> Vector:
         return self._start
 
     @property
-    @override
     def end(self) -> Vector:
         return self._end
 
     @property
-    @override
     def length(self) -> float:
         return self._length
 
-    @override
     def point_at(self, t: float) -> Vector:
         angle = self.start_angle + (self.end_angle - self.start_angle) * t / self.length
         return self.center + Vector.polar(self.radius, angle)
 
-    @override
     def tangent_at(self, t: float) -> Vector:
         angle = self.start_angle + t / self.radius + math.pi / 2
         return Vector.polar(self.radius, angle)
 
-    @override
     def translate(self, v: Vector) -> "Arc":
         return Arc(self.center + v, self.radius, self.start_angle, self.end_angle)
 
-    @override
     def rotate(self, angle: float, origin: Vector | None = None) -> "Arc":
         return Arc(
             self.center.rotate(angle, origin),
@@ -185,21 +170,17 @@ class Segments(Segment):
         self._length = sum(seg.length for seg in segments)
 
     @property
-    @override
     def length(self) -> float:
         return self._length
 
     @property
-    @override
     def start(self) -> Vector:
         return self._segments[0].start
 
     @property
-    @override
     def end(self) -> Vector:
         return self._segments[-1].end
 
-    @override
     def point_at(self, t: float) -> Vector:
         for seg in self._segments:
             checkpoint()
@@ -208,7 +189,6 @@ class Segments(Segment):
             t -= seg.length
         return self.end
 
-    @override
     def tangent_at(self, t: float) -> Vector:
         for seg in self._segments:
             checkpoint()
@@ -217,11 +197,9 @@ class Segments(Segment):
             t -= seg.length
         return self._segments[-1].tangent_at(self._segments[-1].length)
 
-    @override
     def translate(self, v: Vector) -> "Segments":
         return Segments(*[seg.translate(v) for seg in self._segments])
 
-    @override
     def rotate(self, angle: float, origin: Vector | None = None) -> "Segments":
         return Segments(*[seg.rotate(angle, origin) for seg in self._segments])
 

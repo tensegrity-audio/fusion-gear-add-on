@@ -40,6 +40,8 @@ requirement at runtime.
   feature copies.
 - Unneeded creation-time joints and camera motion are disabled only within this
   privately vendored namespace.
+- Python 3.12-only `typing.override` decorators are removed from segment helpers;
+  these static markers do not affect geometry or runtime behavior.
 - Future annotations are used so geometry modules parse in Python 3.10+; the
   original Python 3.12 command framework is not included.
 

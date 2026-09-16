@@ -16,7 +16,8 @@ const server = http.createServer((req, res) => {
   if (!file.startsWith(ui + path.sep)) { res.writeHead(403); res.end(); return; }
   try {
     const type = { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.json': 'application/json' }[path.extname(file)] || 'application/octet-stream';
-    res.writeHead(200, { 'Content-Type': type }); res.end(fs.readFileSync(file));
+    const contents = fs.readFileSync(file);
+    res.writeHead(200, { 'Content-Type': type }); res.end(contents);
   } catch (_) { res.writeHead(404); res.end(); }
 });
 let browser;

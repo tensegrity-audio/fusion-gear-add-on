@@ -7,6 +7,7 @@ Changes describe source capabilities. Native Fusion verification is tracked sepa
 - Prepared the repository for GitHub distribution with clone, Code ZIP and packaged-artifact installation instructions.
 - Added the source-backed alternatives review, implementation roadmap and contribution guide.
 - Added locked interface-test dependencies, cross-platform GitHub Actions checks and a gated evaluation package artifact.
+- Removed a Python 3.12-only typing dependency found by the Python 3.10 CI job; the geometry code retains standard-library-only runtime support.
 - Fixed gear name edits to update managed Fusion body and timeline names, plus dedicated component names, with exact name restoration on failed updates. Part roots and shared parents keep their names.
 
 ## 0.1.0 evaluation implementation - 2026-09-11
