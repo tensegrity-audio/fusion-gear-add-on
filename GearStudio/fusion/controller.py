@@ -31,9 +31,12 @@ from .document import (
 )
 
 
-PALETTE_ID = "griffin.gearstudio.palette.v1"
-OPEN_ID = "griffin.gearstudio.open.v1"
-COMMIT_ID = "griffin.gearstudio.commit.v1"
+# Keep Fusion UI identifiers to ASCII letters, digits and underscores. The
+# dotted command IDs used in 0.1.0 were rejected with "3 : invalid id" on Windows.
+# These UI IDs are unrelated to persisted gear identities and parameter names.
+PALETTE_ID = "griffin_gearstudio_palette_v1"
+OPEN_ID = "griffin_gearstudio_open_v1"
+COMMIT_ID = "griffin_gearstudio_commit_v1"
 MAX_MESSAGE_BYTES = 65536
 
 

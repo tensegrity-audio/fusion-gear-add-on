@@ -1,14 +1,27 @@
 # Verification record
 
-Release: Gear Studio 0.1.0
+Release: Gear Studio 0.1.1
 
 Date: 2026-09-16
 
 Status: Evaluation build. Native Fusion acceptance is pending.
 
+## Reported native startup failure
+
+On 2026-09-16, Griffin reported that Fusion on Windows found the directly linked
+`GearStudio` folder and entered `GearStudio.py`, but failed in
+`CommandDefinitions.addButtonDefinition` with `RuntimeError: 3 : invalid id`.
+The command being registered used the dotted ID `griffin.gearstudio.open.v1`.
+The full Fusion version and Windows version were not supplied.
+
+Version 0.1.1 replaces all three UI identifiers with a conservative ASCII
+letters/digits/underscores convention and adds a startup regression test at the
+API boundary. Native confirmation of the correction is pending. No gear
+construction or editing result can be inferred from this startup report.
+
 ## Completed in the development environment
 
-- **133 Python unittest checks passed.** They cover numeric and geometric validation, expression dimensions, bounded dependency resolution, persistence and independent templates, controller lifecycle, candidate cleanup, document update and rollback logic, and selected upstream mathematical invariants.
+- **134 Python unittest checks passed.** They cover numeric and geometric validation, expression dimensions, bounded dependency resolution, persistence and independent templates, controller lifecycle, candidate cleanup, document update and rollback logic, and selected upstream mathematical invariants. The 0.1.1 addition exercises command and palette registration, toolbar reopening and shutdown through an API substitute with a conservative identifier restriction.
 - **Chromium interface checks passed.** These exercise stale validation responses, invalid-input build guards, expression drafts, edit identity, cancellation, and the browser preview's refusal to claim native geometry creation. The bridge is a controlled test substitute for Fusion.
 - **Visual review completed** for the desktop panel and a narrow panel. Both fit their viewport without horizontal document overflow. Desktop panels scroll while build controls remain visible. The included screenshot shows the interface preview and its checked default spur profile.
 - All 13 family defaults pass the pure validation core.

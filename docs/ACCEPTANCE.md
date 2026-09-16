@@ -1,6 +1,11 @@
 # Live Fusion acceptance checklist
 
-**Status: pending live execution.** This document records required tests, not completed results. Host-independent Python tests and browser rendering checks cannot establish that Fusion's modeling kernel, palettes, document transactions or installation paths work on a specific release.
+**Status: incomplete.** A Windows startup failure was reported for 0.1.0; the 0.1.1 correction awaits native confirmation. The remaining checklist is pending live execution. Host-independent Python tests and browser rendering checks cannot establish that Fusion's modeling kernel, palettes, document transactions or installation paths work on a specific release.
+
+## Reported failure and retest
+
+- 2026-09-16, Griffin, Windows, directly linked extracted repository: Fusion loaded the entry point, then command registration failed with `RuntimeError: 3 : invalid id`. Full Fusion and OS versions were not supplied.
+- 0.1.1 changes the dotted command/palette IDs to letters, digits and underscores. Retest startup, toolbar reopening, stop/start and Run on Startup using the updated copy. Native retest result: **Pending**.
 
 Run this checklist on both supported desktop platforms before calling a release host-verified. Use disposable designs and keep the tested release ZIP and checksum with the results.
 

@@ -2,6 +2,13 @@
 
 Changes describe source capabilities. Native Fusion verification is tracked separately in [docs/VERIFICATION.md](docs/VERIFICATION.md).
 
+## 0.1.1 startup compatibility fix - 2026-09-16
+
+- Replaced dotted toolbar command and palette identifiers with ASCII letters, digits and underscores after a Windows user reported `RuntimeError: 3 : invalid id` in `addButtonDefinition` during startup.
+- Added a startup/shutdown regression check covering both command registrations, toolbar attachment, palette creation, reopening and cleanup through an API substitute that rejects dotted identifiers.
+- Recorded the native startup failure and documented how to replace the exact copy Fusion loads. Existing gear definitions, named parameters and local preferences retain their identities.
+- Native confirmation of this correction remains pending; passing source tests does not establish Fusion startup or geometry compatibility.
+
 ## Repository publication - 2026-09-16
 
 - Prepared the repository for GitHub distribution with clone, Code ZIP and packaged-artifact installation instructions.

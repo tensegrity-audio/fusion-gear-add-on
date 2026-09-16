@@ -75,7 +75,7 @@ Alternatively, use the **+** or **Add** control in Fusion's **Scripts and Add-In
 
 1. Start Fusion and open a design in the Design workspace.
 2. Open **Utilities > Add-Ins > Scripts and Add-Ins**. Fusion releases may place this command differently; search for **Scripts and Add-Ins** if necessary.
-3. Select the **Add-Ins** tab, then **GearStudio**, and click **Run**. If it is missing, use **+ / Add** to select the installed `GearStudio` directory.
+3. In the current dialog, select **All scripts and add-ins** to clear filters, find **GearStudio**, and click its **Run** icon. If it is missing, choose **+ > Script or add-in from device** and select the inner `GearStudio` directory. In the older dialog, use the **Add-Ins** tab and its **+ / Add** button.
 4. Enable **Run on Startup** if desired.
 5. The Gear Studio panel opens. A **Gear Studio** toolbar command also reopens it. It is placed in an available Create or assembly toolbar panel.
 
@@ -115,6 +115,30 @@ The installers do not delete presets or last-used settings. These live in:
 Logs are stored beside `settings.json` as `GearStudio.log` with bounded rotating backups. To reset preferences, close Fusion and rename `settings.json`; keeping the renamed file makes the reset reversible. Invalid settings files are preserved with a `.corrupt...` suffix when recovery succeeds.
 
 ## Troubleshooting
+
+### Startup reports `RuntimeError: 3 : invalid id`
+
+If the traceback ends in `controller.py` at `addButtonDefinition`, Fusion has
+already found and loaded the add-in. Version 0.1.0 used dotted command IDs;
+0.1.1 replaces these with letters, digits and underscores. This startup fix
+still needs confirmation in the affected Fusion installation.
+
+1. Fully close Fusion to unload the old Python modules.
+2. Download a fresh repository ZIP and extract it into a separate folder.
+3. Find the `GearStudio` folder Fusion actually loads. The traceback gives its
+   path; the Scripts and Add-Ins dialog also displays the location. A directly
+   linked Downloads copy is separate from a copy in `API/AddIns`.
+4. Move that old `GearStudio` folder aside, then put the new inner `GearStudio`
+   folder at the exact same path. Keep the old copy until the update starts
+   successfully. The new `GearStudio.manifest` must show version `0.1.1` or later.
+5. Restart Fusion and run GearStudio again. If the location changed instead,
+   unlink the old entry and add the new inner folder using
+   **+ > Script or add-in from device**.
+
+If the same error remains, check the path in the new traceback for a stale
+second copy. Keep any different traceback with the full Fusion version for
+further diagnosis. Updating the add-in folder does not reset remembered
+settings, presets or saved Fusion gear definitions.
 
 | Symptom | Next action |
 | --- | --- |

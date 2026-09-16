@@ -7,6 +7,7 @@ They do not execute Autodesk geometry or certify native Fusion event ordering.
 from copy import deepcopy
 import importlib.util
 from pathlib import Path
+import re
 import sys
 from types import ModuleType, SimpleNamespace
 import unittest
@@ -126,6 +127,79 @@ class ControllerTests(unittest.TestCase):
         self.assertFalse(self.controller.busy)
         self.assertFalse(self.controller.committing)
         self.assertEqual(self.candidate.cleanup_count, 1)
+
+    def test_start_registers_compatible_ui_ids_and_stop_removes_them(self):
+        # Exercise startup through its API boundary. Permissive mocks previously
+        # missed Fusion rejecting the dotted command IDs reported on Windows.
+        # This conservative subset is our compatibility contract, not an
+        # exhaustive claim about all identifiers accepted by every Fusion build.
+        definitions, palettes, controls = {}, {}, {}
+
+        def check_identity(identity):
+            if re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", identity) is None:
+                raise RuntimeError("3 : invalid id")
+
+        def add_definition(identity, name, description, resources):
+            check_identity(identity)
+            self.assertNotIn(identity, definitions)
+            self.assertTrue(Path(resources).is_dir())
+            definition = SimpleNamespace(
+                id=identity, commandCreated=Event(),
+                deleteMe=lambda: definitions.pop(identity),
+            )
+            definitions[identity] = definition
+            return definition
+
+        def add_control(definition):
+            control = SimpleNamespace(
+                isValid=True, deleteMe=lambda: controls.pop(definition.id),
+            )
+            controls[definition.id] = control
+            return control
+
+        def add_palette(identity, name, url, *options):
+            check_identity(identity)
+            self.assertTrue(url.startswith("file:"))
+            self.assertTrue(url.endswith("/ui/index.html"))
+            palette = SimpleNamespace(
+                isVisible=True, incomingFromHTML=Event(),
+                deleteMe=lambda: palettes.pop(identity),
+            )
+            palettes[identity] = palette
+            return palette
+
+        panel = SimpleNamespace(controls=SimpleNamespace(
+            itemById=controls.get, addCommand=add_control,
+        ))
+        self.controller.ui.commandDefinitions = SimpleNamespace(
+            itemById=definitions.get, addButtonDefinition=add_definition,
+        )
+        self.controller.ui.allToolbarPanels = SimpleNamespace(
+            itemById=lambda identity: panel if identity == "SolidCreatePanel" else None,
+        )
+        self.controller.ui.palettes = SimpleNamespace(itemById=palettes.get, add=add_palette)
+        self.controller._log_handler = None
+        self.controller.send_state = mock.Mock()
+
+        self.controller.start()
+
+        self.assertEqual(set(definitions), {self.module.OPEN_ID, self.module.COMMIT_ID})
+        self.assertEqual(set(controls), {self.module.OPEN_ID})
+        self.assertTrue(controls[self.module.OPEN_ID].isPromoted)
+        self.assertEqual(set(palettes), {self.module.PALETTE_ID})
+        self.assertEqual(len(self.controller.handlers), 3)
+        self.assertEqual(len(definitions[self.module.COMMIT_ID].commandCreated.handlers), 1)
+        definitions[self.module.OPEN_ID].commandCreated.fire()
+        self.controller.send_state.assert_called_once()
+        self.assertEqual(len(palettes), 1)
+
+        self.controller.stop()
+
+        self.assertFalse(definitions)
+        self.assertFalse(palettes)
+        self.assertFalse(controls)
+        self.assertFalse(self.controller.handlers)
+        self.builder.assert_not_called()
 
     def test_invalid_input_never_invokes_native_builder(self):
         self.validation["valid"] = False
