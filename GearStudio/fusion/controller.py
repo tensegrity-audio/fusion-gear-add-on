@@ -310,7 +310,10 @@ class Controller:
 
     def report_error(self, exc, request_id=None):
         expected = isinstance(exc, (ValueError, Cancelled))
-        if expected:
+        # DocumentError wraps native commit errors with recovery guidance. Keep
+        # their chained traceback in the log instead of treating them as plain
+        # validation rejections and losing the failing Fusion API call.
+        if expected and exc.__cause__ is None:
             self.log.info("Request rejected: %s", exc)
         else:
             self.log.error("Gear Studio error: %s\n%s", exc, traceback.format_exc())

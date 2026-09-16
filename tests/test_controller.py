@@ -16,6 +16,8 @@ from unittest import mock
 from urllib.parse import parse_qs, urlsplit
 import uuid
 
+from GearStudio.fusion.document import DocumentError
+
 
 def load_controller():
     fake_adsk = ModuleType("adsk")
@@ -140,6 +142,28 @@ class ControllerTests(unittest.TestCase):
                 self.assertEqual(args.returnData, "OK")
         owner.dispatch.assert_not_called()
         owner.report_error.assert_not_called()
+
+    def test_wrapped_native_commit_error_keeps_traceback_in_log(self):
+        try:
+            try:
+                raise RuntimeError("3 : this is not a parametric design")
+            except RuntimeError as native_error:
+                raise DocumentError("Fusion failed while writing gear parameters.") from native_error
+        except DocumentError as error:
+            self.controller.report_error(error, "gs-error")
+        self.controller.log.info.assert_not_called()
+        self.controller.log.error.assert_called_once()
+        logged_traceback = self.controller.log.error.call_args.args[2]
+        self.assertIn("RuntimeError: 3 : this is not a parametric design", logged_traceback)
+        self.assertIn("DocumentError: Fusion failed while writing gear parameters", logged_traceback)
+        self.assertEqual(self.events, [("error", {
+            "message": "Fusion failed while writing gear parameters.", "requestId": "gs-error"})])
+
+    def test_validation_rejection_remains_concise(self):
+        self.controller.report_error(ValueError("Module must be positive."))
+        self.controller.log.info.assert_called_once()
+        self.controller.log.error.assert_not_called()
+        self.assertEqual(self.events[0][1]["message"], "Module must be positive.")
 
     def test_html_error_acknowledgement_does_not_create_an_error_loop(self):
         owner = SimpleNamespace(dispatch=mock.Mock(), report_error=mock.Mock())

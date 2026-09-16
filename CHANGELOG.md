@@ -2,6 +2,13 @@
 
 Changes describe source capabilities. Native Fusion verification is tracked separately in [docs/VERIFICATION.md](docs/VERIFICATION.md).
 
+## 0.1.3 parameter commit fix - 2026-09-16
+
+- Move user-parameter creation, expression updates and value verification before `BaseFeature.startEdit()`. Editing a Base Feature uses a direct-modeling context; writing parameters there was the likely cause of the reported `3 : this is not a parametric design` commit failure even with design history enabled.
+- Preserve the design's history setting and keep parameter recovery outside source-feature editing. A parameter failure prevents any source-body replacement.
+- Include the failing commit stage in native error messages and preserve chained native tracebacks in `GearStudio.log`.
+- Strengthen document tests to reject parameter writes during source-feature editing, and add coverage for partial parameter creation, rejected edit entry, native-error context and logging. Native confirmation of this fix remains pending.
+
 ## 0.1.2 palette connection fix - 2026-09-16
 
 - Fixed the native panel entering interface-preview mode when Fusion's asynchronous bridge was not ready during page load. Preview is now explicit (`?preview=1`) and uses its own transport without creating or replacing `window.adsk`.

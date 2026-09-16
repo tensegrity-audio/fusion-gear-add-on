@@ -7,6 +7,7 @@ No CustomFeatures preview APIs or automatic geometry recomputation are used.
 Host units: evaluateExpression returns centimetres for lengths and radians for
 angles. Public numeric values in this module are millimetres/degrees/scalars.
 Source bodies are accessed ONLY while their BaseFeature is in edit mode.
+User parameters are written outside that direct-edit context.
 
 API references (Autodesk, checked September 2026):
 https://help.autodesk.com/cloudhelp/ENU/Fusion-360-API/files/fusion_BaseFeature_updateBody.htm
@@ -586,6 +587,7 @@ def commit_candidate(design, spec, values, candidate_body, record=None):
     old_metadata = feature.attributes.itemByName(ATTRIBUTE_GROUP, ATTRIBUTE_NAME).value if feature else None
     timeline = design.timeline
     old_marker = timeline.markerPosition
+    stage = "accessing the gear's timeline position"
     try:
         if record:
             if not _valid(feature) or getattr(feature, "isSuppressed", False):
@@ -605,17 +607,29 @@ def commit_candidate(design, spec, values, candidate_body, record=None):
             elif intents is not None and intent == intents.AssemblyDesignIntentType:
                 raise DocumentError("Use a Part or Hybrid design for editable gear bodies. Open a modelable part or enable modeling before building.")
             else:
+                stage = "creating the gear component"
                 occurrence = design.rootComponent.occurrences.addNewComponent(core.Matrix3D.create())
                 _check_success(occurrence, "Fusion could not create the gear component. Use a Part or Hybrid design.")
                 component = occurrence.component
                 component.name = spec.get("name") or "Gear"
+            stage = "creating the source feature"
             feature = component.features.baseFeatures.add()
             _check_success(feature, "Fusion could not create an editable gear feature.")
             created_feature = True
             feature.name = "Gear Studio: " + (spec.get("name") or "Gear")
+        # BaseFeature editing is a direct-modeling context within a parametric
+        # design. Parameter writes there can fail with "not a parametric
+        # design" even though the history check passed. Apply/verify inputs
+        # before entering that context; recovery also exits it before restoring
+        # parameters. Do not toggle designType to work around the host error.
+        stage = "writing gear parameters"
+        parameters_started = True
+        _apply_parameters(design, spec, names, values, creating=record is None)
+        stage = "entering source-feature edit mode"
         _check_success(feature.startEdit(), "Fusion could not enter the gear's source feature. Finish the current edit and try again.")
         editing = True
         if record:
+            stage = "backing up the source solid"
             if feature.bodies.count != 1:
                 raise DocumentError("The gear's source feature no longer contains exactly one body. Undo manual source-body changes before updating.")
             source = feature.bodies.item(0)
@@ -624,24 +638,26 @@ def commit_candidate(design, spec, values, candidate_body, record=None):
                 previous_names["source"] = source.name
             backup = manager.copy(source)
             _assert_body(backup)
-        parameters_started = True
-        _apply_parameters(design, spec, names, values, creating=record is None)
         if record:
             # Mark before the call because a failing host call may have changed
             # the source despite returning false or throwing an exception.
             changed_body = True
+            stage = "replacing the source solid"
             _check_success(feature.updateBody(source, candidate_body), "Fusion rejected the replacement solid. The previous gear will be restored.")
             if rename:
                 renamed.add("source")
                 source.name = spec.get("name") or "Gear"
         else:
+            stage = "adding the source solid"
             source = component.bRepBodies.add(candidate_body, feature)
             _check_success(source, "Fusion could not add the solid to its source feature.")
             source.name = spec.get("name") or "Gear"
         _assert_body(source)
+        stage = "finishing source-feature edit mode"
         _check_success(feature.finishEdit(), "Fusion could not finish the gear's source feature.")
         editing = False
         if rename:
+            stage = "renaming the gear"
             if feature.bodies.count != 1:
                 raise DocumentError("Fusion did not return exactly one gear body after the update.")
             renamed.add("result")
@@ -651,11 +667,15 @@ def commit_candidate(design, spec, values, candidate_body, record=None):
             if rename_component:
                 renamed.add("component")
                 component.name = spec.get("name") or "Gear"
+        stage = "saving the gear definition"
         metadata_attempted = True
         _write_metadata(feature, metadata)
         if record:
+            stage = "restoring the timeline"
             timeline.markerPosition = old_marker
+        stage = "recomputing the design"
         _check_success(design.computeAll(), "Fusion could not recompute the design after the gear update.")
+        stage = "checking downstream features"
         _check_health(health + [(feature, None)])
         return GearRecord(spec, component, feature, names, dict(values))
     except Exception as original:
@@ -714,4 +734,4 @@ def commit_candidate(design, spec, values, candidate_body, record=None):
             raise DocumentError("The gear operation failed and Fusion could not completely restore the previous state. Use Undo now before continuing. Recovery details: " + "; ".join(recovery)) from original
         if isinstance(original, DocumentError):
             raise
-        raise DocumentError("Fusion could not commit this gear. The previous geometry and parameters were restored. %s" % str(original)) from original
+        raise DocumentError("Fusion could not commit this gear while %s. The previous geometry and parameters were restored. %s" % (stage, str(original))) from original

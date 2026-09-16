@@ -225,6 +225,34 @@ Logs are stored beside `settings.json` as `GearStudio.log` with bounded rotating
 | Two GearStudio entries appear, or an update seems unchanged | Inspect their displayed paths. Stop and unlink the stale linked copy; move any old automatically discovered `API/AddIns/GearStudio` copy aside with Fusion closed. Restart Fusion and run only the Documents copy. |
 | Fusion reports a missing folder after moving files | Unlink the old entry and add the new inner GearStudio folder. |
 
+### Creating a gear reports `3 : this is not a parametric design`
+
+If the message begins **Fusion could not commit this gear**, update to **0.1.3**
+or later. Earlier versions wrote user parameters while editing a Base Feature,
+which uses direct modeling even within a history-enabled design. The correction
+moves parameter writes before that edit; it does not change your design mode.
+
+1. Save your designs and fully close Fusion.
+2. Follow [Update an installation](#update-an-installation) for the folder Fusion
+   actually loads. For a Git installation, open the Documents checkout and run
+   `git pull --ff-only`. For a ZIP installation, replace that copy using the
+   linked instructions.
+3. Open `GearStudio/GearStudio.manifest` in a text editor and confirm its version
+   is **0.1.3** or later. Reopen Fusion and run GearStudio.
+4. In a new Part or Hybrid design with **Capture Design History** enabled, create
+   the default Spur. Confirm a body appears and Change Parameters contains its
+   `GS_...` rows. Then try editing the gear and **Update from Parameters**.
+
+A separate message asking you to **Enable Capture Design History before
+building editable gears** is a preflight rejection of a direct design. Finish
+any active Base Feature edit first; in a genuinely direct design, enable history
+before building. Do not switch an existing parametric design to direct mode to
+work around the commit error, because that can discard its timeline.
+
+If the commit still fails, retain the complete message, installed version and
+`GearStudio.log`. Version 0.1.3 identifies the failing stage and logs the original
+native traceback. Live confirmation of the correction remains pending.
+
 ### The panel says Interface preview inside Fusion, or reports an unavailable action
 
 This was a connection defect in versions before 0.1.2. The browser adapter could

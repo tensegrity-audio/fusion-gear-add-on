@@ -41,6 +41,7 @@ class Parameter:
     def expression(self): return self._expression
     @expression.setter
     def expression(self, expression):
+        self.owner.design.require_parameter_mode()
         if self.owner.fail_on == (self.name, expression):
             self.owner.fail_on = None
             raise RuntimeError("injected parameter failure")
@@ -49,6 +50,7 @@ class Parameter:
     def value(self):
         return self.owner.design.unitsManager.evaluateExpression(self.expression, self.unit)
     def deleteMe(self):
+        self.owner.design.require_parameter_mode()
         del self.owner.data[self.name]
         return True
 
@@ -60,6 +62,7 @@ class Parameters:
     def item(self, index): return list(self.data.values())[index]
     def itemByName(self, name): return self.data.get(name)
     def add(self, name, value, unit, comment):
+        self.design.require_parameter_mode()
         if name in self.data: raise ValueError("duplicate")
         parameter = Parameter(self, name, value, unit)
         self.data[name] = parameter
@@ -209,6 +212,12 @@ class Design:
         self.unitsManager = Units(self)
         self.fail_compute_once = False
         self.compute_hook = None
+    def require_parameter_mode(self):
+        # A BaseFeature edits direct geometry inside a parametric design. The
+        # design's history setting alone does not establish parameter access.
+        if any(feature.editing for component in self.allComponents.items
+               for feature in component.features.items):
+            raise RuntimeError("3 : this is not a parametric design")
     def computeAll(self):
         if self.compute_hook: self.compute_hook()
         if self.fail_compute_once:
@@ -505,6 +514,46 @@ class DocumentTests(unittest.TestCase):
         self.design.userParameters.fail_on = (record.parameter_names["teeth"], "30")
         with self.assertRaises(d.DocumentError):
             d.commit_candidate(self.design, spec, values, Body("new", True), record)
+        self.assert_restored(record, expressions)
+        self.assertEqual(record.feature.updates, [])
+
+    def test_parameter_creation_failure_cleans_up_partial_rows(self):
+        parameters = self.design.userParameters
+        add = parameters.add
+        def fail_after_first_row(*args):
+            if parameters.count:
+                raise RuntimeError("injected parameter creation failure")
+            return add(*args)
+        with patch.object(parameters, "add", side_effect=fail_after_first_row):
+            with self.assertRaisesRegex(d.DocumentError, "writing gear parameters"):
+                self.create()
+        self.assertEqual(parameters.count, 0)
+        self.assertEqual(self.design.rootComponent.features.count, 0)
+
+    def test_start_edit_failure_restores_parameters_before_any_body_change(self):
+        record = self.create()
+        spec, values = self.updated(record)
+        expressions = {name: parameter.expression for name, parameter in self.design.userParameters.data.items()}
+        with patch.object(record.feature, "startEdit", return_value=False):
+            with self.assertRaisesRegex(d.DocumentError, "enter the gear's source feature"):
+                d.commit_candidate(self.design, spec, values, Body("new", True), record)
+        self.assert_restored(record, expressions)
+        self.assertEqual(record.feature.updates, [])
+
+    def test_native_body_failure_identifies_stage_and_keeps_exception_cause(self):
+        record = self.create()
+        spec, values = self.updated(record)
+        expressions = {name: parameter.expression for name, parameter in self.design.userParameters.data.items()}
+        update = record.feature.updateBody
+        native_error = RuntimeError("3 : injected native failure")
+        def fail_candidate(source, body):
+            if body.shape == "new":
+                raise native_error
+            return update(source, body)
+        with patch.object(record.feature, "updateBody", side_effect=fail_candidate):
+            with self.assertRaisesRegex(d.DocumentError, "replacing the source solid") as raised:
+                d.commit_candidate(self.design, spec, values, Body("new", True), record)
+        self.assertIs(raised.exception.__cause__, native_error)
         self.assert_restored(record, expressions)
 
     def test_failed_creation_removes_component_body_feature_and_parameter_rows(self):

@@ -1,6 +1,6 @@
 # Live Fusion acceptance checklist
 
-**Status: incomplete.** Windows reports include the 0.1.0 command-ID failure and a subsequent preview/connection failure. The 0.1.2 connection correction awaits native confirmation. The remaining checklist is pending live execution. Host-independent Python tests and browser rendering checks cannot establish that Fusion's modeling kernel, palettes, document transactions or installation paths work on a specific release.
+**Status: incomplete.** Windows reports include the command-ID failure, preview/connection failure and a later commit failure saying the design is not parametric. The latest screenshot reaches the native commit handler; successful gear creation and the 0.1.3 parameter correction await confirmation. The remaining checklist is pending live execution. Host-independent Python tests and browser rendering checks cannot establish that Fusion's modeling kernel, palettes, document transactions or installation paths work on a specific release.
 
 ## Reported failure and retest
 
@@ -8,6 +8,8 @@
 - 0.1.1 changes the dotted command/palette IDs to letters, digits and underscores. Retest startup, toolbar reopening, stop/start and Run on Startup using the updated copy. Native retest result: **Pending**.
 
 - Subsequent Windows screenshot: the panel opens with Interface preview and the native unsupported-action error; installed revision was not provided. Version 0.1.2 isolates preview mode and ignores host acknowledgements. Live handshake and default Spur creation retest: **Pending**.
+
+- Later Windows screenshot: commit fails with `3 : this is not a parametric design`. Version 0.1.3 moves parameter writes outside Base Feature editing. Retest creation, panel editing and Update from Parameters in a history-enabled Part and Hybrid design: **Pending**. Record the installed version and the full stage-specific message/log if it fails again.
 
 Run this checklist on both supported desktop platforms before calling a release host-verified. Use disposable designs and keep the tested release ZIP and checksum with the results.
 
@@ -69,6 +71,7 @@ Additional family checks:
 
 ## Expressions and actual parameter use
 
+- [ ] With version 0.1.3 or later, create the default Spur in both Part and Hybrid designs with history enabled. Confirm one B-rep and its `GS_...` rows, edit teeth from 24 to 30 in the panel, then change the generated teeth parameter to 32 and use **Update from Parameters**. Confirm geometry follows each change, editing ends normally and design history stays enabled.
 - [ ] Create external `shaftDiameter` and `boreAllowance` length parameters. Enter `shaftDiameter + boreAllowance` for bore and build. Confirm the generated parameter retains the expression and the measured bore matches it.
 - [ ] Change `shaftDiameter` in Fusion's Parameters dialog. Confirm the add-in identifies changed inputs on refresh/edit, and geometry changes only after **Update from Parameters**.
 - [ ] Change each family's tooth count or other principal count in the parameter table; explicitly update and measure the resulting geometry.

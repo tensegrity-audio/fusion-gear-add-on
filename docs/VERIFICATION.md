@@ -1,6 +1,6 @@
 # Verification record
 
-Release: Gear Studio 0.1.2
+Release: Gear Studio 0.1.3
 
 Date: 2026-09-16
 
@@ -33,10 +33,30 @@ explicit preview transport, waits for the live connection and filters those
 acknowledgements. Native confirmation of the correction and the first B-rep
 build remains pending.
 
+## Reported parameter commit failure
+
+A later Windows screenshot reports: "Fusion could not commit this gear. The
+previous geometry and parameters were restored. 3 : this is not a parametric
+design." This establishes that execution reached the native commit handler,
+past candidate preparation and the history preflight. It does not prove a
+successful commit or independently verify the reported recovery.
+
+Inspection found parameter writes inside `BaseFeature.startEdit()` / `finishEdit()`.
+Autodesk describes a [Base Feature](https://help.autodesk.com/cloudhelp/ENU/Fusion-360-API/files/fusion_BaseFeature.htm)
+as a direct edit feature within a parametric design. That context mismatch is the
+likely cause; the screenshot does not include the exact failing API call.
+Version 0.1.3 moves parameter writes before source-feature editing without
+changing the design mode, and adds stage-specific messages and chained native
+tracebacks to the log. The document substitute now rejects parameter mutations
+during source-feature editing: the previous implementation fails that contract,
+while the corrected creation, update and recovery paths pass. This substitute
+does not establish native API compatibility. Live retest remains pending.
+
 ## Completed in the development environment
 
-- **138 Python unittest checks passed.** They cover numeric and geometric validation, expression dimensions, bounded dependency resolution, persistence and independent templates, controller lifecycle, candidate cleanup, document update and rollback logic, and selected upstream mathematical invariants. The 0.1.1 addition exercises command and palette registration, toolbar reopening and shutdown through an API substitute with a conservative identifier restriction.
+- **143 Python unittest checks passed.** They cover numeric and geometric validation, expression dimensions, bounded dependency resolution, persistence and independent templates, controller lifecycle, candidate cleanup, document update and rollback logic, and selected upstream mathematical invariants. The 0.1.1 addition exercises command and palette registration, toolbar reopening and shutdown through an API substitute with a conservative identifier restriction.
 - Four 0.1.2 Python additions cover response acknowledgements, error-feedback suppression, correlated handshakes and delivery of an HTML build request into the candidate-preparation lifecycle through host substitutes.
+- Five 0.1.3 additions cover cleanup after partial parameter creation, parameter recovery after rejected edit entry, stage-specific native failures, chained tracebacks in the log and concise validation errors. All document mutation/recovery tests run with the parameter-mode restriction described above.
 - **Chromium interface checks passed.** These exercise stale validation responses, invalid-input build guards, expression drafts, edit identity, cancellation, and the browser preview's refusal to claim native geometry creation. The 0.1.2 checks also simulate delayed bridge injection, a lost startup message, bounded timeout and retry, a late startup reply during a build, exactly one Create gear request, and explicitly isolated browser preview. The bridge is a controlled test substitute for Fusion.
 - **Earlier interface visual review completed** for the desktop panel and a narrow panel. Both fit their viewport without horizontal document overflow. Desktop panels scroll while build controls remain visible. The included screenshot shows the interface preview and its checked default spur profile.
 - All 13 family defaults pass the pure validation core.
