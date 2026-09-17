@@ -56,3 +56,7 @@ preservation, rename messaging and the existing validation/connection guards.
 Screenshots are browser previews, not proof of a native Fusion build. Native
 selection, parameter rename, undo and installation remain in the acceptance
 checklist.
+
+## Native palette lifecycle (0.3.0)
+
+The controller re-registers missing promoted toolbar controls after startup, document activation and workspace activation. Startup loading does not open the palette automatically. Native `ready` and HTML `layoutReady` messages bracket one one-pixel resize to initialize Qt's viewport. Subsequent state updates and user resizing do not repeat it. No geometry action is retried. Command icons use 16/32 SVGs, with existing PNG fallbacks for older hosts.

@@ -29,6 +29,7 @@ def gear_cylindrical(
 
     # Create a new sketch on the xy plane.
     sketch = comp.sketches.add(comp.xYConstructionPlane).createForAssemblyContext(occurrence)
+    sketch.name = "Tooth groove profile"
     sketch.isComputeDeferred = True
 
     # Generate tooth profile with adjusted parameters for helical angle.
@@ -107,6 +108,7 @@ def gear_cylindrical(
 
     # draw the axis
     sketch2 = comp.sketches.add(comp.xYConstructionPlane)
+    sketch2.name = "Pitch circle and shaft axis"
     center_axis = sketch2.sketchCurves.sketchLines.addByTwoPoints(
         fh.point3d(z=-thickness / 2), fh.point3d(z=thickness / 2)
     )
@@ -127,9 +129,9 @@ def gear_cylindrical(
     )[0:2]
     if beta == 0:
         # for non-helical gears, simply extrude the groove shape
-        cut = fh.FeatureOperations.cut
+        cut = fh.FeatureOperations.new_body
         tooth_feature = fh.comp_extrude(
-            comp, teeth_profiles, cut, thickness, True, True, participants=[disk]
+            comp, teeth_profiles, cut, thickness, True, True
         )
     else:
         # Sweeping the groove profile with rotation angle is theoretically
@@ -199,15 +201,29 @@ def gear_cylindrical(
                 fh.comp_move_free(comp, patches[0], matrix, occurrence)
 
         tooth_feature = fh.comp_loft(
-            comp, fh.FeatureOperations.cut, [p.faces[0] for p in patches], disk
+            comp, fh.FeatureOperations.new_body, [p.faces[0] for p in patches]
         )
         fh.comp_remove(comp, patches)
 
-    # copy the groove around the axis
-    fh.comp_circular_pattern(comp, tooth_feature, comp.zConstructionAxis, trunc(z))
+    # Pattern the actual cutter solid. Repeating the dependent loft-cut feature
+    # can leave shallow seams and a single real groove in some Fusion versions.
+    # Body patterning gives every instance an explicit rigid transformation.
+    tooth_feature.name = "Tooth cutter"
+    cutters = [body for body in tooth_feature.bodies if body.isSolid]
+    if len(cutters) != 1:
+        raise RuntimeError("The tooth cutter must be one solid before patterning.")
+    pattern = fh.comp_circular_pattern(comp, cutters, comp.zConstructionAxis, trunc(z))
+    pattern.name = "Repeat tooth cutters"
+    # Feature.bodies can omit the seed body. Gather the live bodies instead.
+    tools = [body for body in comp.bRepBodies if body.isSolid and body != disk]
+    if len(tools) != trunc(z):
+        raise RuntimeError("Fusion did not generate the requested number of tooth cutters.")
+    cut = fh.comp_combine(comp, disk, tools, fh.FeatureOperations.cut)
+    cut.name = "Cut all tooth spaces"
 
     # show the axis and reference circle
     sketch2.isVisible = True
+    sketch.isVisible = True
 
 
 def draw_part(

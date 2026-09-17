@@ -6,7 +6,7 @@
   const previewMode = options.get('preview') === '1' && options.get('host') !== 'fusion';
   const expectedHost = previewMode ? 'preview' : 'fusion';
   const state = { catalog: null, spec: null, presets: [], selection: null, mode: 'create', host: 'connecting', connected: false, supportedKinds: [], drafts: {}, parameterMaps: {}, valid: false, busy: false, request: 0, actions: {}, validationRequest: null, validationTimer: null, timeout: null };
-  let connectionTimer, connectionDeadline;
+  let connectionTimer, connectionDeadline, layoutAcknowledged = false;
 
   function transport() {
     if (previewMode) return window.gearStudioPreview && window.gearStudioPreview.send.bind(window.gearStudioPreview);
@@ -334,6 +334,14 @@
     $('preview-notice').hidden = state.host !== 'preview';
     if (!state.spec && state.catalog) state.spec = defaultSpec(state.supportedKinds[0] || 'spur');
     setBusy(false); renderConfiguration(); renderPresets(); scheduleValidation(0);
+    if (state.host === 'fusion' && !layoutAcknowledged) {
+      layoutAcknowledged = true;
+      // Let Qt and CSS complete the first layout before restoring the native
+      // palette size. This message never requests geometry or resets a draft.
+      requestAnimationFrame(() => requestAnimationFrame(() => send('layoutReady', {
+        width: window.innerWidth, height: window.innerHeight
+      })));
+    }
   }
   window.fusionJavaScriptHandler = {
     handle: function (action, jsonString) {

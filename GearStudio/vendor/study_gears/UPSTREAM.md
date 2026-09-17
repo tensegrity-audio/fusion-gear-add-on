@@ -32,12 +32,13 @@ requirement at runtime.
 - Wheel outer diameter includes normal profile shift.
 - Crown generation accepts an explicit backing thickness. The wrapper adds a
   solid supporting web and an optional shaft bore.
-- The wrapper adds cylindrical bores and internal-gear rings using temporary
-  B-rep Boolean operations. Herringbone solids join a helical half to its mirror.
+- The wrapper adds cylindrical bores and internal-gear rings using native
+  sketch, Extrude and Combine operations. Herringbone solids join a helical half to its mirror.
 - Bevel tooth thinning is divided by two when calling the upstream per-flank
   offset, and signed spiral inputs are normalized to the requested member.
-- Identical pattern computation replaces repeated adjusted computation for
-  feature copies.
+- Cylindrical cutters are patterned as B-rep bodies, then subtracted in one Combine feature. Repeating the dependent helical loft-cut feature produced a mostly cylindrical result in a user report. Cutter count and post-build tooth-space checks now guard this path.
+- Rack and worm constructors accept an explicit parent component for retained construction history.
+- Other feature copies retain the Identical pattern compute option.
 - Unneeded creation-time joints and camera motion are disabled only within this
   privately vendored namespace.
 - Python 3.12-only `typing.override` decorators are removed from segment helpers;

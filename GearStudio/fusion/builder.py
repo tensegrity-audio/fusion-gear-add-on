@@ -6,12 +6,12 @@ bodies are centred on XY. Worms run from Z=0 to face width. Bevels retain the
 common pitch-cone apex at the origin. Racks run in +X, teeth in +Y, width in Z,
 with the reference line at Y=0. Crown reference tooth plane is Z=0.
 
-This module does not create target parameters, attributes, components or features.
-Call from the palette bridge before starting the hidden target commit command:
-Fusion cannot close documents while a command transaction is active.
+Preflight builds run in a disposable document. The same native construction is
+replayed in the target command, retaining sketches and operations. User parameters
+and metadata belong to document.py. No Base Feature is used for new gears.
 """
 from dataclasses import dataclass
-from math import asin, atan2, cos, isfinite, pi, radians
+from math import asin, atan2, cos, sin, isfinite, pi, radians
 
 from ..core.validation import validate
 from ..vendor.study_gears.guard import (
@@ -254,6 +254,84 @@ def _gear_params(v, inner=False):
 
 
 def _generate(design, kind, v, adsk, report):
+    body = generate_native(design.rootComponent, kind, v, adsk, report)
+    return _temporary_copy(body, adsk)
+
+
+def _descendant_solids(component):
+    result = [body for body in component.bRepBodies if body.isSolid]
+    for occurrence in component.occurrences:
+        result.extend(_descendant_solids(occurrence.component))
+    return result
+
+
+def _native_cylinder(component, radius, z0, z1, adsk, name):
+    from ..vendor.study_gears.lib import fusion_helper as fh
+    sketch = component.sketches.add(component.xYConstructionPlane)
+    sketch.name = name + " profile"
+    sketch.sketchCurves.sketchCircles.addByCenterRadius(adsk.core.Point3D.create(), radius)
+    feature = fh.comp_extrude(component, sketch.profiles.item(0),
+                              fh.FeatureOperations.new_body, z1 - z0, offset=z0)
+    feature.name = name
+    sketch.isVisible = True
+    return feature.bodies.item(0)
+
+
+def _native_move(body, adsk, rotation_y=0, rotation_z=0, translation_z=0):
+    from ..vendor.study_gears.lib import fusion_helper as fh
+    matrix = adsk.core.Matrix3D.create()
+    if rotation_y:
+        matrix.setToRotation(rotation_y, adsk.core.Vector3D.create(0, 1, 0), adsk.core.Point3D.create())
+    elif rotation_z:
+        matrix.setToRotation(rotation_z, adsk.core.Vector3D.create(0, 0, 1), adsk.core.Point3D.create())
+    matrix.translation = adsk.core.Vector3D.create(0, 0, translation_z)
+    feature = fh.comp_move_free(body.parentComponent, body, matrix)
+    if feature:
+        feature.name = "Align shaft and reference plane"
+    return body
+
+
+def verify_tooth_spaces(body, kind, v, adsk):
+    """Reject missing/repeatedly failed cylindrical cuts, not just invalid solids.
+
+    Sample material/air at an intermediate tooth radius at three axial sections.
+    Compare the seed pitch with up to twelve distributed pitches. This is a
+    bounded sanity check, not a substitute for full metrology or Fusion testing.
+    """
+    from ..core.validation import CYLINDRICAL, dimensions
+    if kind not in CYLINDRICAL:
+        return
+    metrics = dimensions(kind, v)
+    radius = (metrics["root_diameter"] + metrics["tip_diameter"]) / 40
+    teeth = int(v["teeth"])
+    width = v["width"] / 10
+    containment = adsk.fusion.PointContainment
+    inside, outside = containment.PointInsidePointContainment, containment.PointOutsidePointContainment
+    indices = sorted({int(i * teeth / min(teeth, 12)) for i in range(min(teeth, 12))})
+    for z in (-0.4 * width, 0.07 * width, 0.4 * width):
+        seed = None
+        for tooth in indices:
+            signature = []
+            for step in range(32):
+                checkpoint()
+                angle = 2 * pi / teeth * (tooth + (step + 0.371) / 32)
+                state = body.pointContainment(adsk.core.Point3D.create(radius * cos(angle), radius * sin(angle), z))
+                if state not in (inside, outside, getattr(containment, "PointOnPointContainment", 1)):
+                    raise BuildError("Fusion could not verify the tooth spaces. No gear was committed.")
+                signature.append(state)
+            if seed is None:
+                seed = signature
+                if inside not in seed or outside not in seed:
+                    raise BuildError("The solid is missing tooth tips or spaces. No gear was committed.")
+            elif any(a != b for a, b in zip(seed, signature) if a in (inside, outside) and b in (inside, outside)):
+                raise BuildError("The tooth pattern is incomplete. No gear was committed.")
+
+
+def generate_native(parent, kind, v, adsk, report=lambda *args: None):
+    """Construct real sketches/features under parent; return its single solid.
+
+    Caller owns a bounded() scope and deletes the entire staged parent on error.
+    """
     from ..vendor.study_gears.lib import fusion_helper as fh
     from ..vendor.study_gears.gear_cylindrical import gear_cylindrical
     from ..vendor.study_gears.gear_rack import RackParams, gear_rack
@@ -276,8 +354,6 @@ def _generate(design, kind, v, adsk, report):
     herringbone = kind in ("herringbone", "internal_herringbone")
     beta = radians(v.get("helix_angle", 0)) if "helical" in kind or herringbone else 0
     p = _gear_params(v, inner)
-    manager = adsk.fusion.TemporaryBRepManager.get()
-    boolean = adsk.fusion.BooleanTypes
 
     if kind in ("rack", "helical_rack", "worm"):
         rp = RackParams(
@@ -289,15 +365,18 @@ def _generate(design, kind, v, adsk, report):
         )
         report("Building the rack profile" if kind != "worm" else "Building the worm thread", 28)
         if kind == "worm":
-            gear_worm(rp, 0, int(v.get("worm_hand", 1)))
+            gear_worm(rp, 0, int(v.get("worm_hand", 1)), parent=parent)
         else:
-            gear_rack(rp, 0)
-        body = _temporary_copy(_only_solid(design), adsk)
+            gear_rack(rp, 0, parent=parent)
+        solids = _descendant_solids(parent)
+        if len(solids) != 1:
+            raise BuildError("The native construction must contain one solid.")
+        body = solids[0]
         if kind != "worm":
             # Upstream rack length runs -Y, teeth +X. Reorient to +X / +Y.
-            body = _transform(adsk, body, rotation_z=pi / 2)
+            body = _native_move(body, adsk, rotation_z=pi / 2)
     else:
-        wrapper = design.rootComponent.occurrences.addNewComponent(adsk.core.Matrix3D.create())
+        wrapper = parent.occurrences.addNewComponent(adsk.core.Matrix3D.create())
         wrapper.isGroundToParent = False
         if kind in ("bevel", "spiral_bevel"):
             first = int(v["teeth"]) >= int(v["mate_teeth"])
@@ -323,8 +402,8 @@ def _generate(design, kind, v, adsk, report):
             occurrence = gear_bevel.generate_gear(
                 wrapper, bp, axis, n, grooves, 1 if first else -1, 0, False, printable=False,
             )
-            body = _temporary_copy(_solid_in(occurrence.component), adsk)
-            body = _transform(adsk, body, rotation_y=atan2(axis.z, axis.x) - pi / 2)
+            body = _solid_in(occurrence.component)
+            body = _native_move(body, adsk, rotation_y=atan2(axis.z, axis.x) - pi / 2)
         elif kind == "crown":
             p.z = int(v["mate_teeth"])
             p.shift = 0
@@ -335,14 +414,14 @@ def _generate(design, kind, v, adsk, report):
                 wrapper, p, int(v["teeth"]), width / (2 * m), width / (2 * m), 0,
                 base_thickness=v["crown_base"] / 10,
             )
-            body = _temporary_copy(_solid_in(gear), adsk)
-            body = _transform(adsk, body, translation_z=m * p.z / 2)
+            body = _solid_in(gear)
+            body = _native_move(body, adsk, translation_z=m * p.z / 2)
             # Add a full backing web below the tooth roots, retaining the annular
             # generating region above it. The requested bore is cut afterwards.
             base = v["crown_base"] / 10
             outer_radius = m * int(v["teeth"]) / 2 + width / 2
-            web = _cylinder(adsk, outer_radius, -p.mf * m - base, -p.mf * m)
-            body = _boolean(adsk, body, web, boolean.UnionBooleanType)
+            web = _native_cylinder(gear, outer_radius, -p.mf * m - base, -p.mf * m, adsk, "Backing web")
+            fh.comp_combine(gear, body, web, fh.FeatureOperations.join).name = "Join backing web"
         else:
             if kind == "worm_wheel":
                 beta = int(v.get("worm_hand", 1)) * asin(v["worm_starts"] * v["module"] / v["worm_diameter"])
@@ -358,21 +437,27 @@ def _generate(design, kind, v, adsk, report):
                 report("Joining the two helical halves", 72)
                 fh.comp_move_free(component, native, fh.matrix_translate(z=width / 4))
                 reflected = fh.comp_mirror(component, native, component.xYConstructionPlane).bodies.item(0)
-                body = _temporary_copy(native, adsk)
-                other_half = _temporary_copy(reflected, adsk)
-                body = _boolean(adsk, body, other_half, boolean.UnionBooleanType)
-            else:
-                body = _temporary_copy(native, adsk)
+                fh.comp_combine(component, native, reflected, fh.FeatureOperations.join).name = "Join herringbone halves"
+            body = native
             if inner:
                 report("Building the surrounding ring", 79)
-                ring = _cylinder(adsk, v["outside_diameter"] / 20, -width / 2, width / 2)
-                body = _boolean(adsk, ring, body, boolean.DifferenceBooleanType)
+                ring = _native_cylinder(component, v["outside_diameter"] / 20, -width / 2, width / 2, adsk, "Ring blank")
+                fh.comp_combine(component, ring, body, fh.FeatureOperations.cut).name = "Cut internal teeth"
+                body = ring
 
     if not inner and kind not in ("rack", "helical_rack") and v.get("bore", 0) > 0:
         report("Cutting the shaft bore", 85)
         bounds = body.boundingBox
         margin = max(0.1, width / 10)
-        bore = _cylinder(adsk, v["bore"] / 20,
-                         bounds.minPoint.z - margin, bounds.maxPoint.z + margin)
-        body = _boolean(adsk, body, bore, boolean.DifferenceBooleanType)
+        bore = _native_cylinder(body.parentComponent, v["bore"] / 20,
+                                bounds.minPoint.z - margin, bounds.maxPoint.z + margin, adsk, "Shaft bore cutter")
+        fh.comp_combine(body.parentComponent, body, bore, fh.FeatureOperations.cut).name = "Cut shaft bore"
+    body = _solid_in(body.parentComponent)
+    _verify_solid(body)
+    verify_tooth_spaces(body, kind, v, adsk)
+    # Expose actual input sketches in the normal Design browser. They move with
+    # their owning component; no root-level decorative copies are made.
+    for sketch in body.parentComponent.sketches:
+        sketch.isVisible = True
+    body.parentComponent.isSketchFolderLightBulbOn = True
     return body

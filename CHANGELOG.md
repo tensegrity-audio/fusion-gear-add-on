@@ -2,6 +2,15 @@
 
 Changes describe source capabilities. Native Fusion verification is tracked separately in [docs/VERIFICATION.md](docs/VERIFICATION.md).
 
+## 0.3.0 construction history, tooth patterns and startup - 2026-09-17
+
+- Replaced cylindrical loft-cut feature patterns with solid cutter-body patterns and a combined subtraction. Added cutter-count and bounded tooth-space checks to reject a mostly cylindrical result. Native confirmation of the reported helical/herringbone defect is still required.
+- New gears retain real sketches, Extrude/Loft/Pattern/Mirror/Combine operations and expanded named timeline groups. All families use the shared native constructor in preflight and target commits. Movable outer components own the generated construction, with visible sketches in the normal Design workspace. New creation requires Hybrid design intent.
+- Updates preserve the outer component and its placement, stage a replacement Construction child, and abort the native transaction if external features, sketches, datums or joints break or disappear. Manual edits inside generated Construction are replaced. Legacy Base Feature gears remain editable; Duplicate creates independent history.
+- Reconcile toolbar controls after Fusion startup, document activation and workspace activation; remove lifecycle handlers on stop. Avoid opening the palette automatically during startup loading.
+- Added a bounded, two-message first-layout resize and native SVG toolbar icons. Browser and API-boundary tests do not certify Qt first-paint behavior or display scaling inside Fusion.
+- Expanded beginner setup and editing instructions, including moving Components, regenerating old gears, preserving user additions and checking the loaded version/path after a complete Fusion restart.
+
 ## 0.2.0 readable parameters, shared interface and beginner setup - 2026-09-17
 
 - New gears use purpose-first parameters such as `Module_G1`, `Teeth_G1`, `FaceWidth_G1` and `Bore_G1`. Suffix allocation checks the design's existing parameters and saved mappings. Names remain stable across gear display-name edits.

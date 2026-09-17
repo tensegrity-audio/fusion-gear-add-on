@@ -31,12 +31,20 @@ The [verification record](docs/VERIFICATION.md) separates completed automated ch
 2. Find the extracted folder that directly contains `README.md` and the inner `GearStudio` folder. Move that repository folder into **Documents > FusionAddins** and name it **fusion-gear-add-on**. Create FusionAddins if needed.
 3. Start Fusion and open **Utilities > Add-Ins > Scripts and Add-Ins**. Choose **+ > Script or add-in from device** and select **Documents > FusionAddins > fusion-gear-add-on > GearStudio**. In the older dialog, use the **Add-Ins** tab's **+** button.
 4. Select **GearStudio**, click **Run**, and optionally enable **Run on Startup**. Keep the linked folder in Documents.
-5. Open a new Part or Hybrid design with **Capture Design History** enabled. Choose **Spur**, wait for validation, then click **Create gear**. Confirm a body appears in Fusion's canvas and Browser. The 2D section alone is a preview.
+5. Open a new Hybrid design with **Capture Design History** enabled. Choose **Spur**, wait for validation, then click **Create gear**. Confirm a body appears in Fusion's canvas and Browser. The 2D section alone is a preview.
 6. Select the generated body or component and choose **Edit** in Gear Studio to change it. Save the Fusion document to retain its gear definition.
 
 **[Full installation instructions](docs/INSTALL.md)** include the exact folder checks, Windows Git commands that locate your configured Documents folder, moving an existing copy, updates, macOS and troubleshooting. If the destination already exists, use the update or move instructions instead of overwriting it. The `.ps1` and `.command` installers are optional alternatives that copy to a different location; they are not part of the recommended Documents setup.
 
 Fusion supplies the Python runtime and modeling API. Normal Fusion licensing and access requirements still apply. The [packaged evaluation artifact](docs/INSTALL.md#packaged-artifacts) is another download option.
+
+## Sketches, timeline and moving gears
+
+New gears retain real construction history. Expand the named **Gear Studio** timeline group and the gear component's **Construction** branch in the Browser. Sketches are visible while the top-level Design is active. Use **Move/Copy > Move Object: Components** and select the outer named gear component to move the body and sketches together. Use that component's origin/axes for assembly references.
+
+**Update gear** rebuilds the generated Construction child and preserves the outer component and its placement. Manual changes inside that generated child are replaced on the next update. Dependent sketches, features or joints outside it that become invalid or disappear cause the update to abort. Stable tooth-face or generated-body references are not promised. Keep user additions outside Construction.
+
+Older Base Feature gears have no discarded sketches to recover. Select one, choose **Duplicate**, then **Create gear** in a Hybrid design to regenerate the construction. This produces an independent gear with new parameter names; it does not migrate existing face references.
 
 ## What is included
 
@@ -53,7 +61,7 @@ These are **13 individual gear variants**, not an automatic paired-gear or gearb
 
 ## Editing and parameters
 
-Gear Studio stores each gear's expression strings and identity on its managed Fusion BaseFeature. New gears receive short, purpose-first user parameters: `Module_G1`, `Teeth_G1`, `PressureAngle_G1`, `FaceWidth_G1`, `Bore_G1`. A second gear uses G2, and so on, skipping numbers already used in the design. The useful part remains visible in narrow parameter columns. Comments identify the full gear name; renaming a gear does not change its parameter names. A Hybrid design receives a component per new gear. A Part design stores the managed body in its root component; select the body when several gears share that component.
+Gear Studio stores each new gear's expression strings and identity on its outer Fusion component. Its Construction child retains the real sketches and modeling operations in the timeline. New gears receive short, purpose-first user parameters: `Module_G1`, `Teeth_G1`, `PressureAngle_G1`, `FaceWidth_G1`, `Bore_G1`. A second gear uses G2, and so on, skipping numbers already used in the design. The useful part remains visible in narrow parameter columns. Comments identify the full gear name; renaming a gear does not change its parameter names. New gears require a Hybrid design so the body and sketches can share a movable component. Older Fusion versions without design intents use a normal history-enabled Design. Existing Base Feature gears remain editable; Duplicate creates an independent gear with native construction history.
 
 **Already have the older long `GS_...` names?** Select the body, refresh the panel's selection, and choose **Shorten parameter names**. This renames the native parameters and saved references without rebuilding the body, including references in other managed gear definitions. It preserves pending table edits for a later explicit update. Existing long names remain supported until you choose this action. Native rename/undo verification is tracked in the acceptance checklist.
 

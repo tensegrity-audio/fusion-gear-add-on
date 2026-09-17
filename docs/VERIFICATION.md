@@ -1,10 +1,18 @@
 # Verification record
 
-Release: Gear Studio 0.2.0
+Release: Gear Studio 0.3.0
 
 Date: 2026-09-17
 
 Status: Evaluation build. Native Fusion acceptance is pending.
+
+## 0.3.0 reported geometry, history and startup defects
+
+Griffin supplied screenshots of default helical and herringbone solids with one apparent full groove and shallow repeated seams, a palette that only rendered correctly after resizing, and a Base Feature timeline icon. These establish native creation with unacceptable tooth geometry and missing construction history. The exact installed commit and Fusion build were not supplied.
+
+The source now patterns solid cylindrical cutters, checks cutter count and samples actual B-rep material/air around multiple pitches and axial sections. New gears retain native construction under a movable component. Toolbar lifecycle handlers, one-time palette size repair and SVG icons address the startup/rendering reports. Tests exercise geometric oracles for all six cylindrical defaults and the single-groove failure, component/placement preservation, dependency-loss rejection, startup timing and bounded palette repair.
+
+**Native verification is pending.** Fusion is not installed here. Passing Python/Chromium tests does not establish correct ACIS lofts/booleans, native command rollback, first paint in Fusion's Qt host or Windows DPI behavior. Run the 0.3.0 regression checklist in ACCEPTANCE.md before treating this as a validated release.
 
 ## Reported native startup failure
 
@@ -54,7 +62,7 @@ does not establish native API compatibility. Live retest remains pending.
 
 ## Completed in the development environment
 
-- **152 Python unittest checks passed.** They cover numeric and geometric validation, expression dimensions, bounded dependency resolution, persistence and independent templates, controller lifecycle, candidate cleanup, document update and rollback logic, and selected upstream mathematical invariants. The 0.1.1 addition exercises command and palette registration, toolbar reopening and shutdown through an API substitute with a conservative identifier restriction.
+- **162 Python unittest checks passed.** They cover numeric and geometric validation, expression dimensions, bounded dependency resolution, persistence and independent templates, controller lifecycle, candidate cleanup, document update and rollback logic, and selected upstream mathematical invariants. The 0.1.1 addition exercises command and palette registration, toolbar reopening and shutdown through an API substitute with a conservative identifier restriction.
 - Four 0.1.2 Python additions cover response acknowledgements, error-feedback suppression, correlated handshakes and delivery of an HTML build request into the candidate-preparation lifecycle through host substitutes.
 - Five 0.1.3 additions cover cleanup after partial parameter creation, parameter recovery after rejected edit entry, stage-specific native failures, chained tracebacks in the log and concise validation errors. All document mutation/recovery tests run with the parameter-mode restriction described above.
 - Nine 0.2.0 additions cover short-name allocation/collisions, stable names, family label coverage, legacy editing, native-object identity and pending edits during renaming, cross-gear saved expressions, recovery after partial renaming/metadata/recompute/reference failures, idempotence, and the native-command route without geometry preparation. Native name setters and dependent-reference rewriting are modeled by substitutes, not exercised in Fusion here.

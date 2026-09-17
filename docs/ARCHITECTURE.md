@@ -1,6 +1,6 @@
 # Gear Studio architecture
 
-Gear Studio separates expressions and preflight checks from expensive native geometry. Each gear has a managed B-rep source body and BaseFeature, a persisted gear definition and real named user parameters. Hybrid designs receive a component for each new gear; Part designs use the root component. Pure Assembly intent is rejected with guidance to use a modelable Part or Hybrid design. The stable API path uses `BaseFeature.updateBody` for explicit updates; no preview Custom Features API is required.
+Gear Studio separates expression validation and isolated native preflight from target construction. Version 0.3.0 creates ordinary Fusion sketches and features inside a movable gear component. The component owns the saved definition and short named parameters. New gears require Hybrid design intent; older releases without intents use a normal history-enabled Design. Existing Base Feature records keep their legacy update path. No Custom Features preview API is used.
 
 ## Modules
 
@@ -17,7 +17,8 @@ Gear Studio separates expressions and preflight checks from expensive native geo
 | `GearStudio/core/storage.py` | Atomic preferences, successful defaults, presets and corruption recovery |
 | `GearStudio/fusion/controller.py` | Palette protocol, validation, preparation, cancellation and commit command |
 | `GearStudio/fusion/document.py` | Fusion expression resolution, parameters, BaseFeature attributes, selection, identity, commit and recovery |
-| `GearStudio/fusion/builder.py` | Isolated native candidate preparation and solid verification |
+| `GearStudio/fusion/builder.py` | Shared native construction, isolated preflight, solid and tooth-space verification |
+| `GearStudio/fusion/history.py` | Native history commits, component ownership, dependency checks and update staging |
 | `GearStudio/vendor/study_gears/` | Adapted MIT geometry algorithms with bounded numerical work |
 | `tests/` | Host-independent checks; host substitutes are not Fusion kernel certification |
 | `tools/package.py` | Standard-library release packaging and checksums |
@@ -72,17 +73,21 @@ Current families use normal tooth-system inputs, except bevel module is defined 
 
 1. The palette sends an expression-only draft. Debounced validation does not modify the target design.
 2. The bridge resolves expressions against Fusion parameters, checks dependency cycles and units, and calls pure preflight.
-3. On an explicit build/update request, the native builder revalidates and prepares geometry in a disposable Fusion design.
-4. Vendor numerical loops and feature boundaries check a cooperative work budget and cancellation. The builder copies the result into a detached temporary B-rep body and checks solidity, connectedness, volume and face count.
-5. The temporary design is closed and the original document restored. The controller verifies that the source document, gear definition and resolved inputs have not changed during preparation.
-6. A Fusion command commits the candidate, parameter expressions and persisted definition together. New gears receive independent identities and parameter names. Updates retain the existing component and managed source body.
-7. Successful commits update last-used settings. Failed preparation does not touch the target. Commit failures attempt explicit restoration and report incomplete restoration instead of claiming success.
+3. On an explicit build/update request, the builder prepares the complete native construction in a disposable Fusion document. The same construction routine is used in preflight and in the target command.
+4. Cylindrical tooth spaces use a solid cutter, a circular **body** pattern, and a Boolean cut. Herringbones add native Move, Mirror and Combine features. Rings, bores and crown backing webs use native sketches, Extrude and Combine features. Cutter count is checked before subtraction. Solid checks include connectedness, volume and face count; cylindrical gears also compare material/air samples across up to twelve pitches at three axial sections to reject incomplete tooth patterns.
+5. A detached copy of the checked result survives closing the temporary document. The original design is restored, and the controller rechecks document identity, saved definitions and input expressions.
+6. Inside the commit command, new gears create a stable outer component with one tagged Construction child. The shared constructor is replayed in that child. It retains actual sketches and features, labels cylindrical steps, enables sketch visibility and creates an expanded timeline group. The root component is activated so those sketches can be seen from the normal Design workspace.
+7. Updates stage a new Construction child in the existing outer component. Only after a successful build and health check is the old generated child deleted. Outer occurrence placement and parameter names are preserved. All external features, sketches, datums, joints and occurrences are checked for new errors or cascaded deletion. A failure raises to the controller, which MUST set `executeFailed = True` so Fusion aborts the entire command transaction. Manual edits within Construction are replaced by an update.
+8. Legacy Base Feature gears use the previous detached-body update and explicit restoration path. Duplication creates independent native construction; it is not an automatic in-place migration of face references.
+9. Only a successful commit updates remembered settings. Native commits have a 150-second cooperative budget and do not pump events during the command transaction. Preflight remains cancellable between operations. A single synchronous Autodesk kernel call cannot be forcibly interrupted by Python.
 
-The commit command is intended to provide one native undo operation. Exact transaction behavior, undo/redo and the downstream effects of `updateBody` require the live-host acceptance checks. Native kernel calls are synchronous; cooperative deadlines cannot forcibly interrupt a single Autodesk modeling operation.
+Native construction is replayed, so successful creation incurs two builds. This cost is explicit: preflight protects the target, and the second build retains ordinary native history. Exact kernel behavior, native rollback, Undo/Redo and downstream references require desktop Fusion acceptance. `CommandEventArgs.executeFailed` is Autodesk's documented transaction-abort mechanism, not a body-copy substitute.
+
+Startup registers command definitions once, then idempotently reconciles promoted controls after startup completion, document activation and workspace activation. Event handlers are removed on stop. Startup loading does not force a palette open. The first `ready` nudges the native palette width by one pixel; after two animation frames, HTML sends `layoutReady` and the host restores the size. This one-time handshake does not replay geometry or reset draft state. SVG 16/32 icons support native high-DPI rendering.
 
 ## Parameter updates and identity
 
-The managed BaseFeature's `GearStudio` / `definition` attribute stores the gear definition, parameter mapping and previously built evaluated values. The owning feature provides the body relationship without relying on tooth-face identifiers. New parameter names use a purpose-first label and a short document-local number, such as `Module_G1` and `Teeth_G1`. Allocation reserves suffixes found in all native parameters and saved managed mappings, including missing rows. The UUID remains the gear's internal identity; its display name and G-number are separate. Expressions remain expressions through edits and updates.
+The outer component's `GearStudio` / `definition` attribute (or the BaseFeature attribute for legacy gears) stores the gear definition, parameter mapping and previously built evaluated values. Component ownership or the legacy source feature provides the body relationship without relying on tooth-face identifiers. New parameter names use a purpose-first label and a short document-local number, such as `Module_G1` and `Teeth_G1`. Allocation reserves suffixes found in all native parameters and saved managed mappings, including missing rows. The UUID remains the gear's internal identity; its display name and G-number are separate. Expressions remain expressions through edits and updates.
 
 Legacy `GS_<id>_<field>` maps remain readable without migration. **Shorten parameter names** uses the native commit command without preparing geometry. It renames existing parameter objects, checks dependent expression rewrites, rewrites affected saved Gear Studio definitions, and preserves each gear's last-applied values so pending table changes are not falsely marked as built. Failure restores names, expressions and exact metadata snapshots. Native rename/undo behavior still needs Fusion acceptance. The front end rewrites aliases in unsaved family drafts while preserving the drafts themselves.
 
@@ -90,7 +95,7 @@ Legacy `GS_<id>_<field>` maps remain readable without migration. **Shorten param
 
 The resolver checks pending expression changes against the parameter dependency graph to detect cycles and evaluate changes coherently. Changes that occur during candidate construction invalidate the pending commit. Missing or renamed generated parameters and duplicate copied identities are rejected with guidance.
 
-The component identity and placement are the stable assembly handles. Body updates can change individual faces and edges. Gear Studio does not promise permanent tooth-face reference identity or an editable timeline feature for every tooth-construction step. It does not silently replace a failed update with a disconnected new component.
+The component identity and placement are the stable assembly handles. Body updates can change individual faces and edges. New gears retain editable sketches and construction features. Gear Studio does not promise permanent generated-body, face or edge identity across regeneration. Keep assembly references on the outer component's datums. It does not silently replace a failed update with a disconnected new component.
 
 ## Coordinate conventions
 

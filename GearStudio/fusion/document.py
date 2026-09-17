@@ -1,6 +1,7 @@
 """Gear definitions, native expression inputs and recoverable document commits.
 
-The stable API uses ordinary UserParameters and BaseFeature.updateBody. Updates
+The stable API uses ordinary UserParameters. This module retains the legacy
+BaseFeature.updateBody commit; new native history commits live in history.py. Updates
 are explicit and must run inside a Fusion command execute handler (one undo item).
 No CustomFeatures preview APIs or automatic geometry recomputation are used.
 
@@ -61,6 +62,14 @@ class GearRecord:
     feature: object
     parameter_names: dict
     applied_values: dict
+    construction: str = "base_feature"
+
+    @property
+    def bodies(self):
+        if self.construction == "native_history":
+            from .builder import _descendant_solids
+            return _descendant_solids(self.component)
+        return _items(self.feature.bodies)
 
     @property
     def id(self):
@@ -344,11 +353,14 @@ def _record(feature, component):
             raise ValueError("applied values")
     except Exception as exc:
         raise DocumentError("A Gear Studio definition is damaged or from an unsupported version. Restore an earlier document version or remove its gear before continuing.") from exc
-    return GearRecord(deepcopy(spec), component, feature, dict(names), dict(values))
+    construction = data.get("construction", "base_feature")
+    if construction not in ("base_feature", "native_history"):
+        raise DocumentError("This gear uses an unsupported construction version.")
+    return GearRecord(deepcopy(spec), component, feature, dict(names), dict(values), construction)
 
 
 def records(design):
-    """Definitions are owned by BaseFeatures, never fragile face identifiers."""
+    """New definitions belong to components; legacy BaseFeatures remain readable."""
     result = []
     components = _items(getattr(design, "allComponents", None))
     if not components and getattr(design, "rootComponent", None):
@@ -356,6 +368,10 @@ def records(design):
     for component in components:
         if not _valid(component):
             continue
+        if getattr(component, "attributes", None):
+            record = _record(component, component)
+            if record:
+                result.append(record)
         for feature in _items(component.features.baseFeatures):
             if _valid(feature):
                 record = _record(feature, component)
@@ -408,11 +424,15 @@ def selected_record(app):
             if component is None and hasattr(entity, "features") and hasattr(entity, "bRepBodies"):
                 component = entity
             if component is not None:
-                direct = [record for record in known if _same(_native(component), record.component)]
+                from .history import _components
+                direct = [record for record in known if
+                          _same(_native(component), record.component) or
+                          (record.construction == "native_history" and any(
+                              _same(_native(component), child) for child in _components(record.component)))]
             else:
                 associated = getattr(entity, "baseFeature", None)
                 for record in known:
-                    if _same(_native(associated), record.feature) or any(_same(entity, _native(body)) for body in _items(record.feature.bodies)):
+                    if _same(_native(associated), record.feature) or any(_same(entity, _native(body)) for body in record.bodies):
                         direct.append(record)
                 # Do not guess from parentComponent: a Part Design can contain
                 # an unrelated box alongside one gear. A downstream body whose
@@ -449,9 +469,9 @@ def _check_success(result, message):
     return result
 
 
-def _metadata(spec, names, values):
+def _metadata(spec, names, values, construction="base_feature"):
     data = json.dumps({"schema_version": 1, "spec": spec, "parameter_names": names,
-                       "applied_values": values}, separators=(",", ":"), allow_nan=False)
+                       "applied_values": values, "construction": construction}, separators=(",", ":"), allow_nan=False)
     if len(data) > MAX_METADATA_LENGTH:
         raise DocumentError("The gear definition is too large to save. Simplify its expressions.")
     return data
@@ -607,7 +627,7 @@ def rename_parameters(design, record):
         if owned.id == record.id or updated != owned.spec:
             mapping = names if owned.id == record.id else owned.parameter_names
             definitions.append((owned.feature, owned.feature.attributes.itemByName(ATTRIBUTE_GROUP, ATTRIBUTE_NAME).value,
-                                _metadata(updated, mapping, owned.applied_values)))
+                                _metadata(updated, mapping, owned.applied_values, owned.construction)))
     health = _health_snapshot(design)
     attempted, written = [], []
     try:
@@ -619,7 +639,7 @@ def rename_parameters(design, record):
         for parameter, previous in expressions:
             if rewrite(previous) != previous and any(token in aliases for token in _NAME.findall(parameter.expression)):
                 raise DocumentError("Fusion did not update a dependent expression after renaming. The previous names will be restored.")
-        renamed_record = GearRecord(record.spec, record.component, record.feature, names, record.applied_values)
+        renamed_record = GearRecord(record.spec, record.component, record.feature, names, record.applied_values, record.construction)
         renamed_current = current_spec(design, renamed_record)
         after = resolve_spec(design, renamed_current, names)
         if any(not math.isclose(values[field], after[field], rel_tol=1e-9, abs_tol=1e-9) for field in values):

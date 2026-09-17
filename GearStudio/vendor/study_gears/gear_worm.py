@@ -13,7 +13,7 @@ from .gear_rack import RackParams
 
 
 # sweep a rack along a spiral curve to generate worm
-def gear_worm(param: RackParams, tip_fillet: float, direction: int):
+def gear_worm(param: RackParams, tip_fillet: float, direction: int, parent=None):
     sin_beta = param.worm * param.m / param.thickness
     angle = asin(sin_beta)
 
@@ -39,8 +39,8 @@ def gear_worm(param: RackParams, tip_fillet: float, direction: int):
         return adsk.core.Point3D.create(v.x, v.y, 0)
 
     # 親コンポーネントを作成
-    occurrence = design.activeComponent.occurrences.addNewComponent(adsk.core.Matrix3D.create())
-    if design.activeOccurrence is not None:
+    occurrence = (parent or design.activeComponent).occurrences.addNewComponent(adsk.core.Matrix3D.create())
+    if parent is None and design.activeOccurrence is not None:
         occurrence = occurrence.createForAssemblyContext(design.activeOccurrence)
     occurrence.isGroundToParent = False
     comp = occurrence.component

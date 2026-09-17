@@ -18,7 +18,7 @@ button, input, dialog { border-radius: var(--made-radius); }
 button:focus-visible, input:focus-visible, summary:focus-visible, .info-tip:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 button { scroll-margin-block: 12px; }
 input { scroll-margin-block: 40px; }
-.app-shell { height: 100vh; display: flex; flex-direction: column; min-height: 0; }
+.app-shell { width: 100%; height: 100%; display: flex; flex-direction: column; min-height: 0; }
 .app-header { min-height: 48px; flex-shrink: 0; padding: 7px 16px; display: flex; align-items: center; justify-content: space-between; gap: 14px; border-bottom: 1px solid var(--border); background: #151711; }
 .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .brand-mark { width: 25px; height: 27px; fill: none; stroke: var(--accent); stroke-width: 1.6; flex-shrink: 0; }

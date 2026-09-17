@@ -126,3 +126,17 @@ For each case, compare the existing component, source body, parameters and persi
 ## Release decision
 
 Record the host-tested subset, unresolved failures and exact Fusion builds. Until the full matrix is executed, describe the package as an implementation for evaluation with live Fusion verification pending. A preview screenshot, passing Python tests or successful creation of one spur gear is not evidence that all 13 variants and both update paths work in Fusion.
+
+## 0.3.0 mandatory native regression checks
+
+Record Fusion build, OS, UI theme and display scaling. Automated substitutes do not check these items.
+
+- [ ] Fresh Hybrid design: default Helical and Herringbone have complete tooth spaces around the circumference at both ends and midsection. Measure tooth count, bore, width and pitch/tip/root dimensions. Repeat left-hand helix and both internal variants.
+- [ ] New Spur, Helical and Herringbone show named native profile sketches, cutter/pattern/cut features and a bore operation. Herringbone also shows mirror/join history. No Base Feature is created for new gears.
+- [ ] Repeat creation for every remaining family and verify native history, one solid and visible input sketches.
+- [ ] Activate the top-level Design: sketches remain visible. Move and rotate the outer gear component with Move Object = Components; all construction and body move together. Capture position, update tooth count, save/reopen and verify placement and selection.
+- [ ] Parameter edits require explicit Update from Parameters. Update replaces only generated Construction, preserving independent sketches outside it.
+- [ ] Add a dependent feature and projected sketch outside Construction. An update that invalidates or deletes them must abort and restore the document through the native command transaction. Verify no orphan parameters/components, then Undo/Redo successful create and update.
+- [ ] Update a legacy Base Feature gear successfully. Duplicate it into a new native-history gear. Verify independent names and no automatic migration of old face references.
+- [ ] Enable Run on Startup, close Fusion completely, relaunch without an open document, then open a Hybrid design. Toolbar command is present and works without toggling the add-in. Switching Design/workspaces repeatedly does not duplicate commands.
+- [ ] First palette open, stop/start, close/reopen, narrow/wide and Windows 100/150/200 percent scaling render immediately without manual resizing. SVG command icons are sharp.

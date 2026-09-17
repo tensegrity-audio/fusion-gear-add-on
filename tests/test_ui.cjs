@@ -41,6 +41,10 @@ const clone = (value) => JSON.parse(JSON.stringify(value));
   async function waitValidation(previous) { await page.waitForFunction((previous) => { const requests = window.__requests.filter((request) => request.action === 'validate'); return requests.length && requests[requests.length - 1].requestId !== previous; }, previous || ''); return last('validate'); }
   const initial = { catalog: data.catalog, spec: data.samples.spur.spec, presets: [], selection: null, mode: 'create', supportedKinds: data.supportedKinds, host: 'fusion' };
   await emit('state', initial);
+  await page.waitForFunction(() => window.__requests.some((request) => request.action === 'layoutReady'));
+  const firstLayout = await last('layoutReady');
+  assert.equal(firstLayout.width, 1300);
+  assert.equal(firstLayout.height, 1000);
   const first = await waitValidation();
   await emit('validation', Object.assign(clone(data.samples.spur.validation), { requestId: first.requestId }));
   assert.equal(await page.locator('#build-gear').isEnabled(), true, 'A checked configuration should be buildable in Fusion.');
@@ -121,6 +125,7 @@ const clone = (value) => JSON.parse(JSON.stringify(value));
   await page.locator('[data-kind="spur"]').click();
 
   await emit('state', Object.assign({}, initial, { host: 'preview' }));
+  assert.equal(await page.evaluate(() => window.__requests.filter((request) => request.action === 'layoutReady').length), 1, 'Draft updates and repeated state replies must not restart palette resizing.');
   assert.equal(await page.locator('#host-label').innerText(), 'Autodesk Fusion', 'An unrelated preview message cannot change a native session.');
   assert.equal(await page.locator('#preview-notice').isVisible(), false);
 

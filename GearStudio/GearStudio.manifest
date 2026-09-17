@@ -3,7 +3,7 @@
   "type": "addin",
   "author": "Griffin van Horne",
   "description": {"": "Gear Studio: validated B-rep gear generation, editable definitions, named parameters, presets, and remembered settings."},
-  "version": "0.2.0",
+  "version": "0.3.0",
   "runOnStartup": false,
   "supportedOS": "windows|mac",
   "editEnabled": true

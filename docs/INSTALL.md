@@ -77,7 +77,7 @@ The **Gear Studio** panel should open. Its **Gear Studio** toolbar command reope
 
 Click **Getting started** in the panel. The bottom of that guide shows the installed version and folder. This is the copy Fusion is actually running; use that location when updating or reporting a problem.
 
-Use a modelable **Part** or **Hybrid** design with **Capture Design History** enabled. Pure Assembly design intent is unsupported for body creation. A Hybrid design receives a component per gear; a Part design receives a managed body in its root component.
+Use a **Hybrid** design with **Capture Design History** enabled. In Fusion's **File > New Design** options, choose the Hybrid design type when a type choice is offered. Part designs cannot contain the movable component structure used by new gears; Assembly-only designs do not permit this modeling. Gear Studio does not silently convert an existing design. Older Fusion releases without design types use a normal new Design.
 
 Start with a new disposable design. Check that the timeline is visible at the bottom of Fusion. If history is disabled, right-click the top design component in Fusion's Browser and choose **Capture Design History**. Finish any active sketch, Base Feature edit or command before creating a gear. In older Fusion releases, a normal new Design is the appropriate starting point.
 
@@ -90,14 +90,14 @@ Start with a new disposable design. Check that the timeline is visible at the bo
 1. Choose **Spur** in the left gear list. Enter a name such as **Drive gear**.
 2. Use **Module 1 mm**, **Teeth 24**, **Pressure angle 20 deg**, **Face width 8 mm**, **Bore 5 mm** and **Tooth thinning 0.05 mm**. In Advanced, the starter values are profile shift 0, addendum 1, dedendum 1.25 and root fillet 0.25. These explicit values also work when a previous session remembered different settings.
 3. Wait for validation. If Create gear is disabled, read the highlighted fields and the status at the bottom.
-4. Click **Create gear** once and wait for the result. Look for the new body in Fusion's canvas and Browser. In a Hybrid design it is inside a new gear component; in a Part design it is in the root component. Use Fusion's Fit view and check body visibility if it is off-screen.
+4. Click **Create gear** once and wait for the result. Look for the new body in Fusion's canvas and Browser. It is inside a new named gear component. Expand its Construction branch to see the body and visible sketches, and expand the Gear Studio group in the timeline to see the operations. Use Fusion's Fit view and check body visibility if it is off-screen.
 5. **Save the Fusion design.** This preserves the B-rep and its editable Gear Studio definition.
 
 **Checkpoint:** there is a solid body in Fusion, and **Modify > Change Parameters** contains rows such as `Module_G1` and `Teeth_G1`. A 2D outline in the panel alone is only a preview. **Create gear** makes the solid; **Save** preserves the design; use Fusion's **Export** command separately when you need a format such as STEP. Keep the original Fusion design for future Gear Studio edits.
 
 ### Edit through the Gear Studio panel
 
-1. Select the generated **body** in Fusion's canvas or Browser. Selecting a Part's root component can be ambiguous when it contains multiple gears.
+1. Select the generated **body** in Fusion's canvas or Browser. The outer named component selects the whole gear, including its construction sketches.
 2. Click the **refresh arrow** in the panel's selection box and confirm the gear's name appears.
 3. Click **Edit**, change Teeth to **30**, wait for validation, then click **Update gear**. The existing body should change.
 
@@ -114,6 +114,30 @@ New names put the setting first (`Bore_G1`, `FaceWidth_G1`) so they remain disti
 The upgrade applies to the active Fusion design. External text files and presets that reference another gear's old names may need those expressions updated when reused. Presets already expand their source gear's own names into independent expressions. Use version 0.2.0 or later to edit a design with short parameter names; older add-in versions do not understand those saved mappings.
 
 Both edit paths explicitly rebuild a B-rep solid. Parameter-table changes alone do not regenerate geometry. If validation or a build fails, resolve the reported input problem before using the previous geometry as an updated result.
+
+## Move a gear with its sketches
+
+1. Finish any active sketch or feature edit. Activate the top-level design using the radio button next to its name in the Browser.
+2. Expand the named gear component, then **Construction**, then its child components. The **Gear body and sketches** component contains the solid and its actual input sketches. Their visibility is enabled after creation.
+3. Choose **Modify > Move/Copy**. Set **Move Object** to **Components** and select the outer named gear component in the Browser. Do not select only the body when you want the sketches to travel with it.
+4. Move or rotate it and confirm the body and sketches move together. Capture the component position when Fusion offers it.
+5. Select the gear again and use Gear Studio **Edit > Update gear**. The outer component and its placement stay in place; the generated Construction child is rebuilt.
+
+Keep your own sketches and downstream modifications outside the generated Construction child. Edits inside it are replaced by Update gear. References to generated faces or bodies may prevent an update; references to the outer component's origin and axes are more stable. Use Fusion Undo to undo the complete Gear Studio command.
+
+### Existing gears with only a Base Feature
+
+They remain editable through the legacy update path. Their discarded construction steps cannot be recovered from the old body. To rebuild one with history, select it, refresh Gear Studio's selection, choose **Duplicate**, then **Create gear** in a Hybrid design. Inspect and position the new independent gear before removing the old one. Duplicate creates new parameter names; it does not transfer downstream face references. In a Part design, you can reuse the same settings in a new Hybrid design instead.
+
+### Update to the construction-history version
+
+1. Save your Fusion designs and close Fusion completely so Python modules and cached icons unload.
+2. Follow the update instructions below for your existing Documents installation. Keep only one linked GearStudio copy; do not accidentally run an older copy from Downloads or the optional installer directory.
+3. Start Fusion, run GearStudio, and open **Getting started**. Confirm **Gear Studio 0.3.0** and the intended Documents path.
+4. Create a new Hybrid design and a new default Helical gear, then a Herringbone gear. Check for full tooth spaces all around, a shaft bore, visible sketches and an expanded timeline group.
+5. Close the palette and reopen it from **Design > Solid > Create > Gear Studio**. It is also registered under **Utilities > Add-Ins**. Restart with Run on Startup enabled and check the command reappears without toggling the add-in. The palette need not open automatically on startup.
+
+The new palette performs a bounded first-layout resize automatically. If it is still blank on 0.3.0, record the loaded path, Fusion version, Windows display scaling and whether a manual resize restores it. This needs native-host verification; browser tests cannot reproduce Fusion's Qt window lifecycle.
 
 ## Windows: Git alternative
 
@@ -279,7 +303,7 @@ moves parameter writes before that edit; it does not change your design mode.
    linked instructions.
 3. Open `GearStudio/GearStudio.manifest` in a text editor and confirm its version
    is **0.1.3** or later. Reopen Fusion and run GearStudio.
-4. In a new Part or Hybrid design with **Capture Design History** enabled, create
+4. In a new Hybrid design with **Capture Design History** enabled, create
    the default Spur. Confirm a body appears and Change Parameters contains its
    named input rows (for example, `Teeth_G1` in version 0.2.0). Then try editing the gear and **Update from Parameters**.
 
@@ -307,7 +331,7 @@ mistake a host acknowledgement for an unsupported action.
 4. Reopen Fusion and run GearStudio from Scripts and Add-Ins. The top-right label
    should change from **Connecting to Fusion** to **Autodesk Fusion**, with no
    Interface preview banner.
-5. In a new Part or Hybrid design with design history enabled, leave the default
+5. In a new Hybrid design with design history enabled, leave the default
    Spur values, wait for validation, and click **Create gear**. The intended
    result is a B-rep body in the active Fusion design.
 

@@ -28,7 +28,7 @@ class RackParams:
     fillet: float
 
 
-def gear_rack(param: RackParams, tip_fillet: float):
+def gear_rack(param: RackParams, tip_fillet: float, parent=None):
     m = param.m
     mf = param.mf
     height = param.height
@@ -53,7 +53,7 @@ def gear_rack(param: RackParams, tip_fillet: float):
         return adsk.core.Point3D.create(v.x, v.y, 0)
 
     # wrapper component
-    wrapper_occurrence = design.activeComponent.occurrences.addNewComponent(
+    wrapper_occurrence = (parent or design.activeComponent).occurrences.addNewComponent(
         adsk.core.Matrix3D.create()
     )
     wrapper_occurrence.isGroundToParent = False

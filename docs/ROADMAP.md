@@ -51,3 +51,7 @@ After the shared lifecycle is proven, evaluate shaft interfaces, center relief o
 Every additional family needs catalog fields, stated units, bounded validation, a preview, a native builder, parameter/edit support, persistence, geometry fixtures and live Fusion acceptance. Do not expose a generation control merely because a family has a name or a 2D illustration.
 
 Track actionable work as [repository issues](https://github.com/tensegrity-audio/fusion-gear-add-on/issues). Each issue should state the user outcome and the evidence needed to call it complete.
+
+## 0.3.0 follow-through
+
+Construction history, cutter-body patterning and startup repairs are implemented but require the native acceptance run. The next optimization is updating generated sketches/features in place where topology is unchanged; current native-history Update rebuilds the generated Construction child and preserves the outer component. Stable downstream generated-body references, quantified tooth-profile error and native cross-platform/DPI acceptance remain open work.

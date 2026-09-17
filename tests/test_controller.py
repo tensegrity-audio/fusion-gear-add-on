@@ -27,6 +27,9 @@ def load_controller():
     fake_adsk.core.CommandCreatedEventHandler = object
     fake_adsk.core.CommandEventHandler = object
     fake_adsk.core.HTMLEventHandler = object
+    fake_adsk.core.ApplicationEventHandler = object
+    fake_adsk.core.DocumentEventHandler = object
+    fake_adsk.core.WorkspaceEventHandler = object
     fake_adsk.fusion.DesignTypes = SimpleNamespace(ParametricDesignType=1)
     fake_adsk.fusion.Design = SimpleNamespace(cast=lambda item: item)
     fake_adsk.doEvents = mock.Mock()
@@ -46,6 +49,9 @@ class Event:
 
     def add(self, handler):
         self.handlers.append(handler)
+
+    def remove(self, handler):
+        self.handlers.remove(handler)
 
     def fire(self, args=None):
         for handler in list(self.handlers):
@@ -115,7 +121,8 @@ class ControllerTests(unittest.TestCase):
         self.candidate = Candidate()
         self.builder = self.patch("build_candidate", return_value=self.candidate)
         self.resolver = self.patch("resolve_spec", return_value=self.values)
-        self.commit = self.patch("commit_candidate", return_value=SimpleNamespace(
+        self.patch("require_component_design")
+        self.commit = self.patch("commit_history", return_value=SimpleNamespace(
             spec=self.spec, parameter_names={key: "GS_owned_" + key for key in self.spec["parameters"]}))
 
     def patch(self, name, **kwargs):
@@ -200,7 +207,7 @@ class ControllerTests(unittest.TestCase):
 
     def test_parameter_rename_uses_native_command_without_building_geometry(self):
         old_names = {field: "GS_owned_" + field for field in self.spec["parameters"]}
-        record = SimpleNamespace(id=self.spec["id"], spec=self.spec, parameter_names=old_names)
+        record = SimpleNamespace(construction="native_history", id=self.spec["id"], spec=self.spec, parameter_names=old_names)
         new_names = {field: field.title() + "_G1" for field in self.spec["parameters"]}
         renamed = SimpleNamespace(id=record.id, spec=self.spec, parameter_names=new_names)
         self.controller._require_record = mock.Mock(return_value=record)
@@ -279,20 +286,32 @@ class ControllerTests(unittest.TestCase):
         self.controller.ui.commandDefinitions = SimpleNamespace(
             itemById=definitions.get, addButtonDefinition=add_definition,
         )
+        available = [False]
         self.controller.ui.allToolbarPanels = SimpleNamespace(
-            itemById=lambda identity: panel if identity == "SolidCreatePanel" else None,
+            itemById=lambda identity: panel if available[0] and identity == "SolidCreatePanel" else None,
         )
+        self.controller.ui.workspaceActivated = Event()
+        self.app.startupCompleted = Event()
+        self.app.documentActivated = Event()
         self.controller.ui.palettes = SimpleNamespace(itemById=palettes.get, add=add_palette)
         self.controller._log_handler = None
         self.controller.send_state = mock.Mock()
 
         self.controller.start()
 
+        self.assertFalse(controls, "No Design toolbar exists during early startup.")
+        available[0] = True
+        self.app.startupCompleted.fire()
+        self.controller.ui.workspaceActivated.fire()
+        self.app.documentActivated.fire()
+
         self.assertEqual(set(definitions), {self.module.OPEN_ID, self.module.COMMIT_ID})
         self.assertEqual(set(controls), {self.module.OPEN_ID})
         self.assertTrue(controls[self.module.OPEN_ID].isPromoted)
         self.assertEqual(set(palettes), {self.module.PALETTE_ID})
-        self.assertEqual(len(self.controller.handlers), 3)
+        self.assertEqual(len(self.controller.handlers), 6)
+        self.assertEqual(len(self.controller.controls), 1, "Lifecycle events must not duplicate buttons.")
+        self.assertTrue(controls[self.module.OPEN_ID].isPromotedByDefault)
         self.assertEqual(len(definitions[self.module.COMMIT_ID].commandCreated.handlers), 1)
         definitions[self.module.OPEN_ID].commandCreated.fire()
         self.controller.send_state.assert_called_once()
@@ -303,6 +322,23 @@ class ControllerTests(unittest.TestCase):
         self.assertFalse(definitions)
         self.assertFalse(palettes)
         self.assertFalse(controls)
+        self.assertFalse(self.app.startupCompleted.handlers)
+        self.assertFalse(self.app.documentActivated.handlers)
+        self.assertFalse(self.controller.ui.workspaceActivated.handlers)
+
+    def test_palette_size_repair_is_once_and_split_across_readiness_messages(self):
+        self.controller.palette = SimpleNamespace(width=1160, height=800, setSize=mock.Mock())
+        self.controller._palette_layout_pending = True
+        self.controller.send_state = mock.Mock()
+        self.controller.dispatch("ready", {})
+        self.controller.dispatch("ready", {})
+        self.controller.palette.setSize.assert_called_once_with(1161, 800)
+        self.controller.dispatch("layoutReady", {"width": 1161, "height": 800})
+        self.controller.dispatch("layoutReady", {})
+        self.assertEqual(self.controller.palette.setSize.call_args_list,
+                         [mock.call(1161, 800), mock.call(1160, 800)])
+        self.builder.assert_not_called()
+        self.commit.assert_not_called()
         self.assertFalse(self.controller.handlers)
         self.builder.assert_not_called()
 
@@ -323,7 +359,7 @@ class ControllerTests(unittest.TestCase):
         self.controller._resolved.assert_not_called()
 
     def test_selection_is_stale_after_external_value_change(self):
-        record = SimpleNamespace(spec=deepcopy(self.spec), parameter_names={},
+        record = SimpleNamespace(construction="native_history", spec=deepcopy(self.spec), parameter_names={},
                                  applied_values={"teeth": 24.0, "module": 2.0})
         self.patch("selected_record", return_value=record)
         self.patch("current_spec", return_value=deepcopy(self.spec))
@@ -371,7 +407,7 @@ class ControllerTests(unittest.TestCase):
 
     def test_managed_parameter_edit_during_preparation_is_not_overwritten(self):
         original = deepcopy(self.spec)
-        record = SimpleNamespace(spec=original, parameter_names={"teeth": "GS_owned_teeth"})
+        record = SimpleNamespace(construction="native_history", spec=original, parameter_names={"teeth": "GS_owned_teeth"})
         self.controller._resolved.return_value = (self.design, self.spec, self.values, record, self.validation)
         self.patch("find_record", return_value=record)
         modified = deepcopy(original)
@@ -462,7 +498,7 @@ class ControllerTests(unittest.TestCase):
         source = deepcopy(self.spec)
         source["parameters"]["module"] = "ExternalModule"
         source["parameters"]["width"] = "GS_source_module * 8"
-        record = SimpleNamespace(spec=source, parameter_names={"module": "GS_source_module"})
+        record = SimpleNamespace(construction="native_history", spec=source, parameter_names={"module": "GS_source_module"})
         self.controller._require_record = mock.Mock(return_value=record)
         self.controller.send_state = mock.Mock()
         self.patch("current_spec", return_value=source)
@@ -476,7 +512,7 @@ class ControllerTests(unittest.TestCase):
         source = deepcopy(self.spec)
         source["parameters"]["module"] = "ExternalModule"
         source["parameters"]["width"] = "GS_source_module * 8"
-        record = SimpleNamespace(spec=source, parameter_names={"module": "GS_source_module"})
+        record = SimpleNamespace(construction="native_history", spec=source, parameter_names={"module": "GS_source_module"})
         self.controller._resolved.return_value = (self.design, source, self.values, record, self.validation)
         self.controller.save_preset({"name": "Reusable", "spec": source})
         name, saved = self.controller.store.save_preset.call_args.args

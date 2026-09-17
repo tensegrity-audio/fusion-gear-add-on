@@ -34,7 +34,7 @@ Common parameter keys: module, teeth, width, pressure_angle, backlash, profile_s
 Plain local HTML/CSS/JS under ui/, no network fonts/dependencies. Professional dark neutral engineering panel with restrained warm accent, three regions when wide, responsive narrow palette. Not a website, no Sites hosting. In-app actions use `adsk.fusionSendData(action, JSON.stringify({requestId,...payload}))`. Incoming Python events through `window.fusionJavaScriptHandler.handle(action,jsonString)`, return 'OK'. Local browser demo bridge with same data shapes permitted, clearly identified as interface preview.
 
 Actions:
-`ready`; `validate` `{spec}`; `build` `{spec}`; `editSelected`; `duplicateSelected`; `updateSelected`; `loadLast` `{kind}`; `savePreset` `{name,spec}`; `loadPreset` `{id}`; `deletePreset` `{id}`; `cancel`; `openParameters`; `refreshSelection`.
+`ready`; `layoutReady` (one-time viewport repair); `validate` `{spec}`; `build` `{spec}`; `editSelected`; `duplicateSelected`; `updateSelected`; `loadLast` `{kind}`; `savePreset` `{name,spec}`; `loadPreset` `{id}`; `deletePreset` `{id}`; `cancel`; `openParameters`; `refreshSelection`.
 
 Events:
 `state` `{catalog,spec,presets,selection:{id,name}|null,mode:'create'|'edit',supportedKinds,host:'fusion'|'preview'}`
@@ -48,6 +48,6 @@ Persist local draft form state across family switching; only backend last-used d
 
 ## Root responsibilities
 
-Fusion entry point, commands, HTML palette bridge, expression evaluation, selection resolution, persistent per-gear attributes, namespaced user parameters, safe commit/update through BaseFeature.updateBody, transaction/recovery behavior, packaging, docs, integration and QA.
+Fusion entry point, commands, HTML palette bridge, expression evaluation, selection resolution, persistent per-gear attributes, namespaced user parameters, native component/sketch/feature construction commits, with BaseFeature.updateBody retained for legacy gears, transaction/recovery behavior, packaging, docs, integration and QA.
 
-Must preserve parameter expression references on rebuild. A managed source body inside BaseFeature is updated in place with candidate temporary body; component identity and placement remain. No automatic destructive replacements. Prefer component selection and shaft datums for references; tooth-face references may change. Explicit Update from Parameters performs validation first. Parameter table rows are real inputs to update, not decorative records. Add-in should detect staleness on explicit refresh and before update. Unsupported design modes or selections must fail fast with actionable guidance.
+Must preserve parameter expression references on rebuild. New gears retain native sketches/features in a replaceable Construction child under a stable movable outer component. Updates preserve outer placement, validate a replacement before deleting old construction, and abort the command transaction if external dependencies fail or disappear. Legacy Base Feature gears retain in-place temporary-body updates; Duplicate creates independent native history. No automatic destructive replacements. Prefer component selection and shaft datums for references; tooth-face references may change. Explicit Update from Parameters performs validation first. Parameter table rows are real inputs to update, not decorative records. Add-in should detect staleness on explicit refresh and before update. Unsupported design modes or selections must fail fast with actionable guidance.

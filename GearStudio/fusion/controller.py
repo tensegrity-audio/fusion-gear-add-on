@@ -26,6 +26,7 @@ from ..core.storage import SettingsStore
 from ..core.validation import validate
 from ..core.profiles import preview
 from .builder import build_candidate, SUPPORTED_KINDS
+from .history import commit_history, require_component_design
 from .document import (
     resolve_spec, records, find_record, selected_record, current_spec,
     commit_candidate, rename_parameters, readable_parameter_names,
@@ -186,22 +187,54 @@ class Controller:
         except Exception:
             pass
 
-    def start(self):
+    def start(self, context=None):
         self.store.load()
         self._register_command(OPEN_ID, "Gear Studio", "Create and edit validated B-rep gears", self._open_created)
         self._register_command(COMMIT_ID, "Update Gear Studio solid", "Commit prepared gear geometry", self._commit_created)
-        # The palette opens immediately even if a Fusion release changes panel IDs.
-        for panel_id in ("SolidCreatePanel", "AssemblyInsertPanel", "AssemblyCreatePanel"):
-            panel = self.ui.allToolbarPanels.itemById(panel_id)
+        self._lifecycle_events = []
+        for owner, event_name, handler_name in (
+            (self.app, "startupCompleted", "ApplicationEventHandler"),
+            (self.app, "documentActivated", "DocumentEventHandler"),
+            (self.ui, "workspaceActivated", "WorkspaceEventHandler"),
+        ):
+            event = getattr(owner, event_name, None)
+            base = getattr(adsk.core, handler_name, None)
+            if event is None or base is None:
+                continue
+            controller = self
+            class ToolbarLifecycle(base):
+                def notify(self, args):
+                    if not controller.stopping:
+                        try:
+                            controller._ensure_toolbar()
+                        except Exception:
+                            controller.log.exception("Could not restore the Gear Studio toolbar")
+            handler = ToolbarLifecycle()
+            event.add(handler)
+            self._lifecycle_events.append((event, handler))
+            self.handlers.append(handler)
+        self._ensure_toolbar()
+        startup = isinstance(context, dict) and context.get("IsApplicationStartup", False)
+        if not startup:
+            self.open_palette()
+
+    def _ensure_toolbar(self):
+        # Startup add-ins can run before the Design toolbar exists. Reconcile
+        # again after startup, document activation and workspace activation.
+        workspaces = getattr(self.ui, "workspaces", None)
+        workspace = workspaces.itemById("FusionSolidEnvironment") if workspaces else None
+        for panel_id in ("SolidCreatePanel", "SolidScriptsAddinsPanel", "AssemblyInsertPanel", "AssemblyCreatePanel"):
+            panel = workspace.toolbarPanels.itemById(panel_id) if workspace else None
+            if panel is None:
+                panel = self.ui.allToolbarPanels.itemById(panel_id)
             if panel is None:
                 continue
             existing = panel.controls.itemById(OPEN_ID)
-            if existing:
-                existing.deleteMe()
-            control = panel.controls.addCommand(self.ui.commandDefinitions.itemById(OPEN_ID))
+            control = existing or panel.controls.addCommand(self.ui.commandDefinitions.itemById(OPEN_ID))
+            control.isPromotedByDefault = True
             control.isPromoted = True
-            self.controls.append(control)
-        self.open_palette()
+            if not any(control == owned for owned in self.controls):
+                self.controls.append(control)
 
     def _register_command(self, identity, name, description, callback):
         definition = self.ui.commandDefinitions.itemById(identity)
@@ -229,10 +262,30 @@ class Controller:
         url = (Path(__file__).resolve().parents[1] / "ui" / "index.html").as_uri()
         url += "?host=fusion"
         self.palette = self.ui.palettes.add(PALETTE_ID, "Gear Studio", url, False, True, True, 1160, 800, True)
+        self._palette_layout_pending = True
+        self._palette_restore_size = None
         handler = _HtmlHandler(self)
         self.palette.incomingFromHTML.add(handler)
         self.handlers.append(handler)
         self.palette.isVisible = True
+
+    def _begin_palette_layout(self):
+        if not getattr(self, "_palette_layout_pending", False) or self.palette is None:
+            return
+        # Qt can create the HTML viewport at a tiny size even though the native
+        # window is already full size. Two readiness messages separate the size
+        # changes across event turns, reproducing a single manual resize.
+        width = max(420, int(getattr(self.palette, "width", 1160)))
+        height = max(420, int(getattr(self.palette, "height", 800)))
+        self._palette_layout_pending = False
+        self._palette_restore_size = (width, height)
+        self.palette.setSize(width + 1, height)
+
+    def _finish_palette_layout(self):
+        size = getattr(self, "_palette_restore_size", None)
+        if size and self.palette is not None:
+            self._palette_restore_size = None
+            self.palette.setSize(*size)
 
     def design(self):
         design = adsk.fusion.Design.cast(self.app.activeProduct)
@@ -342,12 +395,16 @@ class Controller:
                 self.cancel_requested = True
                 self.send("progress", {"message": "Cancelling at the next safe checkpoint…", "percent": 0, "cancellable": False})
             return
+        if action == "layoutReady":
+            self._finish_palette_layout()
+            return
         if self.busy:
             if action not in ("validate", "refreshSelection"):
                 self.send("error", {"message": "Wait for the current gear build to finish or cancel it.", "requestId": request_id})
             return
         try:
             if action == "ready":
+                self._begin_palette_layout()
                 self.send_state(request_id=request_id)
             elif action == "validate":
                 self.validate_for_ui(data.get("spec"), request_id)
@@ -474,6 +531,8 @@ class Controller:
             raise StudioError("Finish or cancel the active Fusion command before building a gear.")
         design, spec, values, record, validation = self._resolved(raw)
         self._require_history(design)
+        if record is None or record.construction == "native_history":
+            require_component_design(design)
         if not validation["valid"]:
             validation["preview"] = None
             self.send("validation", validation)
@@ -591,7 +650,9 @@ class Controller:
                     "selection": self._selection_summary(),
                 })
                 return
-            record = commit_candidate(pending.design, pending.spec, pending.values, pending.candidate.body, pending.record)
+            commit = (commit_candidate if pending.record and pending.record.construction == "base_feature"
+                      else commit_history)
+            record = commit(pending.design, pending.spec, pending.values, pending.candidate.body, pending.record)
             self.spec = deepcopy(record.spec)
             self.editing_id = self.spec["id"]
             message = "Gear updated." if pending.record else "Gear created."
@@ -628,6 +689,12 @@ class Controller:
     def stop(self):
         self.stopping = True
         self.cancel_requested = True
+        for event, handler in getattr(self, "_lifecycle_events", []):
+            try:
+                event.remove(handler)
+            except Exception:
+                pass
+        self._lifecycle_events = []
         if not self.busy:
             self._finish_pending()
         for control in self.controls:

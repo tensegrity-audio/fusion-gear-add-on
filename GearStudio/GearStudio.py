@@ -13,7 +13,7 @@ def run(context):
         if _controller is not None:
             _controller.stop()
         _controller = Controller()
-        _controller.start()
+        _controller.start(context)
     except Exception:
         import adsk.core
         adsk.core.Application.get().userInterface.messageBox(
