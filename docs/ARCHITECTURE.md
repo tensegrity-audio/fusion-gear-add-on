@@ -82,7 +82,9 @@ The commit command is intended to provide one native undo operation. Exact trans
 
 ## Parameter updates and identity
 
-The managed BaseFeature's `GearStudio` / `definition` attribute stores the gear definition, parameter mapping and previously built evaluated values. The owning feature provides the body relationship without relying on tooth-face identifiers. Parameter names are generated with a `GS_` prefix and a gear-specific identifier. Expressions remain expressions through edits and updates.
+The managed BaseFeature's `GearStudio` / `definition` attribute stores the gear definition, parameter mapping and previously built evaluated values. The owning feature provides the body relationship without relying on tooth-face identifiers. New parameter names use a purpose-first label and a short document-local number, such as `Module_G1` and `Teeth_G1`. Allocation reserves suffixes found in all native parameters and saved managed mappings, including missing rows. The UUID remains the gear's internal identity; its display name and G-number are separate. Expressions remain expressions through edits and updates.
+
+Legacy `GS_<id>_<field>` maps remain readable without migration. **Shorten parameter names** uses the native commit command without preparing geometry. It renames existing parameter objects, checks dependent expression rewrites, rewrites affected saved Gear Studio definitions, and preserves each gear's last-applied values so pending table changes are not falsely marked as built. Failure restores names, expressions and exact metadata snapshots. Native rename/undo behavior still needs Fusion acceptance. The front end rewrites aliases in unsaved family drafts while preserving the drafts themselves.
 
 **Update from Parameters** uses current table expressions, including referenced parameters, as the source of truth. Merely changing a user parameter does not recompute the solid. Selection refresh and the edit/update paths check for changed inputs. Dependents that are separate generated gears need their own explicit updates.
 

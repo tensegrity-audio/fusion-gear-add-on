@@ -198,6 +198,39 @@ class ControllerTests(unittest.TestCase):
         self.assertIs(self.controller.pending.candidate, self.candidate)
         self.controller._finish_pending()
 
+    def test_parameter_rename_uses_native_command_without_building_geometry(self):
+        old_names = {field: "GS_owned_" + field for field in self.spec["parameters"]}
+        record = SimpleNamespace(id=self.spec["id"], spec=self.spec, parameter_names=old_names)
+        new_names = {field: field.title() + "_G1" for field in self.spec["parameters"]}
+        renamed = SimpleNamespace(id=record.id, spec=self.spec, parameter_names=new_names)
+        self.controller._require_record = mock.Mock(return_value=record)
+        self.controller._selection_summary = mock.Mock(return_value={"id": record.id, "readableParameterNames": True})
+        self.patch("current_spec", return_value=self.spec)
+        self.patch("find_record", return_value=record)
+        rename = self.patch("rename_parameters", return_value=renamed)
+        self.controller.dispatch("renameParameters", {})
+        self.command_definition.execute.assert_called_once()
+        self.assertTrue(self.controller.busy)
+        self.assertEqual(self.controller.pending.operation, "renameParameters")
+        self.controller._commit_execute(SimpleNamespace())
+        rename.assert_called_once_with(self.design, record)
+        self.builder.assert_not_called()
+        self.commit.assert_not_called()
+        self.controller.store.remember_success.assert_not_called()
+        result = next(payload for action, payload in self.events if action == "result")
+        self.assertEqual(result["renamedAliases"]["GS_owned_teeth"], "Teeth_G1")
+        self.assertNotIn("spec", result, "A rename must not replace an unsaved panel draft.")
+        self.assertIsNone(self.controller.pending)
+        self.assertFalse(self.controller.busy)
+
+    def test_parameter_rename_rejects_an_active_fusion_edit(self):
+        self.controller.ui.activeCommand = "SketchLine"
+        self.controller.dispatch("renameParameters", {})
+        self.command_definition.execute.assert_not_called()
+        self.assertIsNone(self.controller.pending)
+        self.assertFalse(self.controller.busy)
+        self.assertIn("Finish or cancel", self.events[-1][1]["message"])
+
     def test_start_registers_compatible_ui_ids_and_stop_removes_them(self):
         # Exercise startup through its API boundary. Permissive mocks previously
         # missed Fusion rejecting the dotted command IDs reported on Windows.

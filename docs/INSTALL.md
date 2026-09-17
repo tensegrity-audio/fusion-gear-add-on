@@ -4,6 +4,16 @@
 
 For first-time Windows users, follow **Windows: download and install** below. You need Autodesk Fusion desktop and a ZIP download. Git, PowerShell installers, a separate Python installation and administrator access are not required for this route.
 
+After extracting the ZIP, you can double-click **START_HERE.html** to read a formatted setup guide in your browser. It opens as a normal local file and needs no server. Follow one installation route from start to finish; the Git and legacy-installer sections are alternatives.
+
+| Term | What it means here |
+| --- | --- |
+| Project folder | The outer `fusion-gear-add-on` folder with the documentation and code |
+| Add-in folder | The inner `GearStudio` folder that you select in Fusion |
+| Add-in | A tool that stays loaded in Fusion to provide the panel and editing commands |
+| Script | A task that runs and finishes; Gear Studio is registered as an add-in |
+| Installer (`.ps1` / `.command`) | Optional file-copy helpers for a different installation layout; not part of the recommended route |
+
 Already have a copy in Downloads or directly inside your user folder? Follow [Move an existing installation into Documents](#move-an-existing-installation-into-documents).
 
 - [Windows: download and install](#windows-download-and-install)
@@ -23,6 +33,8 @@ Already have a copy in Downloads or directly inside your user folder? Follow [Mo
 3. Click the green **Code** button, then **Download ZIP**.
 4. In File Explorer, right-click the downloaded ZIP and choose **Extract All**, then **Extract**. Wait for extraction to finish. Work from the extracted folder, not the compressed ZIP.
 5. Open the extracted folders until you can see `README.md`, `docs`, and a folder named `GearStudio` together. This is the repository folder. Windows can create an extra outer folder with the same name; use the one that actually contains those files.
+
+**Checkpoint:** you are looking at ordinary extracted files, not browsing inside the ZIP. Double-click `START_HERE.html` if you would like to keep the instructions open beside Fusion.
 
 ### 2. Put the repository in Documents
 
@@ -45,6 +57,8 @@ A typical full path is `C:\Users\<your-name>\Documents\FusionAddins\fusion-gear-
 
 If the destination already exists, use [Update an installation](#update-an-installation) instead of merging two extracted folders. Keep the inner folder named exactly `GearStudio`.
 
+**Checkpoint:** the selected folder ends in `fusion-gear-add-on\GearStudio`, and its contents include `GearStudio.py` and `GearStudio.manifest`. If file extensions are hidden, turn on **View > Show > File name extensions** in File Explorer.
+
 ### 3. Add the folder to Fusion
 
 1. Start Fusion and open a new design in the **Design** workspace.
@@ -57,13 +71,49 @@ If the destination already exists, use [Update an installation](#update-an-insta
 
 Fusion remembers the linked folder and loads its files in place. This is a supported installation method; leave the folder in Documents after adding it. See [Autodesk's folder-linking instructions](https://help.autodesk.com/cloudhelp/ENU/Fusion-360-API/files/WritingDebugging_UM.htm).
 
-### 4. Confirm it opened
+### 4. Confirm it opened and prepare a design
 
-The **Gear Studio** panel should open. Its **Gear Studio** toolbar command reopens the panel after you close it. If an error appears, keep the entire message and see [Troubleshooting](#troubleshooting).
+The **Gear Studio** panel should open. Its **Gear Studio** toolbar command reopens the panel after you close it. At a normal panel width, the connection label changes to **Autodesk Fusion**. An **Interface preview** banner means you are not using the native creation flow. If an error appears, keep the entire message and see [Troubleshooting](#troubleshooting).
+
+Click **Getting started** in the panel. The bottom of that guide shows the installed version and folder. This is the copy Fusion is actually running; use that location when updating or reporting a problem.
 
 Use a modelable **Part** or **Hybrid** design with **Capture Design History** enabled. Pure Assembly design intent is unsupported for body creation. A Hybrid design receives a component per gear; a Part design receives a managed body in its root component.
 
-Start with a new disposable design and the default Spur settings. Native Fusion acceptance is still incomplete; [the verification record](VERIFICATION.md) identifies the reported startup failure, source checks and remaining host tests. Merely appearing in the add-in list does not establish successful gear generation.
+Start with a new disposable design. Check that the timeline is visible at the bottom of Fusion. If history is disabled, right-click the top design component in Fusion's Browser and choose **Capture Design History**. Finish any active sketch, Base Feature edit or command before creating a gear. In older Fusion releases, a normal new Design is the appropriate starting point.
+
+**Checkpoint:** the panel has loaded, a modelable design is active, and design history is enabled. Continue with the first-gear steps below. Native Fusion acceptance is still incomplete; the [verification record](VERIFICATION.md) distinguishes observed results from automated checks.
+
+## First gear and subsequent edits
+
+### Create your first solid
+
+1. Choose **Spur** in the left gear list. Enter a name such as **Drive gear**.
+2. Use **Module 1 mm**, **Teeth 24**, **Pressure angle 20 deg**, **Face width 8 mm**, **Bore 5 mm** and **Tooth thinning 0.05 mm**. In Advanced, the starter values are profile shift 0, addendum 1, dedendum 1.25 and root fillet 0.25. These explicit values also work when a previous session remembered different settings.
+3. Wait for validation. If Create gear is disabled, read the highlighted fields and the status at the bottom.
+4. Click **Create gear** once and wait for the result. Look for the new body in Fusion's canvas and Browser. In a Hybrid design it is inside a new gear component; in a Part design it is in the root component. Use Fusion's Fit view and check body visibility if it is off-screen.
+5. **Save the Fusion design.** This preserves the B-rep and its editable Gear Studio definition.
+
+**Checkpoint:** there is a solid body in Fusion, and **Modify > Change Parameters** contains rows such as `Module_G1` and `Teeth_G1`. A 2D outline in the panel alone is only a preview. **Create gear** makes the solid; **Save** preserves the design; use Fusion's **Export** command separately when you need a format such as STEP. Keep the original Fusion design for future Gear Studio edits.
+
+### Edit through the Gear Studio panel
+
+1. Select the generated **body** in Fusion's canvas or Browser. Selecting a Part's root component can be ambiguous when it contains multiple gears.
+2. Click the **refresh arrow** in the panel's selection box and confirm the gear's name appears.
+3. Click **Edit**, change Teeth to **30**, wait for validation, then click **Update gear**. The existing body should change.
+
+### Edit through Fusion's parameter table
+
+1. Click **Parameters** at the bottom of Gear Studio, or open **Modify > Change Parameters**.
+2. Find `Teeth_G1` under User Parameters and change it to **32**. Your gear may use G2 or another number if other parameters already exist. The Comments column identifies the gear.
+3. Close the dialog, select the gear body and refresh the selection in Gear Studio.
+4. Click **Update from Parameters** in the Fusion parameters box below the input fields. Wait for the update, then save the design.
+5. Close and reopen the saved design; select the body, refresh selection and choose **Edit** to reload it.
+
+New names put the setting first (`Bore_G1`, `FaceWidth_G1`) so they remain distinct in narrow columns. The number is reserved per design and stays stable when the gear is renamed. For existing `GS_...` names, select the gear, refresh selection and click **Shorten parameter names**. This upgrades native names and saved references without rebuilding the solid. Long names still work until you use the upgrade. Use this action instead of manually renaming managed rows.
+
+The upgrade applies to the active Fusion design. External text files and presets that reference another gear's old names may need those expressions updated when reused. Presets already expand their source gear's own names into independent expressions. Use version 0.2.0 or later to edit a design with short parameter names; older add-in versions do not understand those saved mappings.
+
+Both edit paths explicitly rebuild a B-rep solid. Parameter-table changes alone do not regenerate geometry. If validation or a build fails, resolve the reported input problem before using the previous geometry as an updated result.
 
 ## Windows: Git alternative
 
@@ -115,16 +165,6 @@ For example, an existing `C:\Users\griff\fusion-gear-add-on` checkout moves to `
 If the old entry points to `API\AddIns\GearStudio`, it is an installer-managed copy that Fusion discovers automatically. After stopping it and closing Fusion, move that old **GearStudio** folder to a backup location outside `API\AddIns`. Then obtain the repository in Documents using the ZIP or Git route and link it. This prevents Fusion from loading two copies. Keep the backup until the Documents copy works.
 
 Settings and presets live outside the add-in folder; moving the code does not reset them. Existing gear definitions remain in saved Fusion designs.
-
-## First gear and subsequent edits
-
-
-1. Choose **Spur**, leave the default settings, and generate a gear.
-2. Select the resulting body or component, choose **Edit** in the panel's selection area, change the tooth count and update.
-3. Open **Modify > Change Parameters** and find its `GS_...` parameter rows. Change face width, close the dialog, select the gear and choose **Update from Parameters**.
-4. Save the Fusion document. Close and reopen it, select the gear and confirm **Edit** reloads its definition. Select the body when multiple gears share a Part design's root component.
-
-Both edit paths explicitly rebuild a B-rep solid. Parameter-table changes alone do not regenerate geometry. If validation or a build fails, resolve the reported input problem before using the previous geometry as an updated result.
 
 ## Update an installation
 
@@ -241,7 +281,7 @@ moves parameter writes before that edit; it does not change your design mode.
    is **0.1.3** or later. Reopen Fusion and run GearStudio.
 4. In a new Part or Hybrid design with **Capture Design History** enabled, create
    the default Spur. Confirm a body appears and Change Parameters contains its
-   `GS_...` rows. Then try editing the gear and **Update from Parameters**.
+   named input rows (for example, `Teeth_G1` in version 0.2.0). Then try editing the gear and **Update from Parameters**.
 
 A separate message asking you to **Enable Capture Design History before
 building editable gears** is a preflight rejection of a direct design. Finish
@@ -293,7 +333,7 @@ Follow [Update an installation](#update-an-installation) with Fusion fully close
 | Add-in is not listed | Confirm the exact folder nesting and register the `GearStudio` folder with **+ / Add**. |
 | Panel was closed | Use the **Gear Studio** toolbar command, or stop and run the add-in again. |
 | Named expression is invalid | Define the referenced parameter in this design and check its units. Presets do not bring unrelated document parameters with them. |
-| Generated parameter is missing or renamed | Restore its original `GS_...` name in Change Parameters, then retry. |
+| Generated parameter is missing or renamed | Restore the original name identified by the error in Change Parameters, then retry. Use Shorten parameter names in Gear Studio for upgrading legacy rows. |
 | Copied identity warning | Use **Duplicate** in Gear Studio to create independent definitions. Undo an ordinary copied component if it created duplicate identities. |
 | Parameters changed but the solid did not | Select the gear and use **Update from Parameters**. Automatic recomputation is not part of this release. |
 | Build rejected or cancelled | Read the field-specific message. The previous successful solid remains the reference until a subsequent update succeeds. |

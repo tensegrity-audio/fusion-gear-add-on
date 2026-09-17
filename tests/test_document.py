@@ -34,9 +34,26 @@ class Attributes:
 
 class Parameter:
     def __init__(self, owner, name, expression, unit):
-        self.owner, self.name, self.unit = owner, name, unit
+        self.owner, self._name, self.unit = owner, name, unit
         self._expression = expression
         self.isValid = True
+    @property
+    def name(self): return self._name
+    @name.setter
+    def name(self, name):
+        self.owner.design.require_parameter_mode()
+        if name == self._name: return
+        if name in self.owner.data: raise RuntimeError("duplicate parameter name")
+        previous = self._name
+        del self.owner.data[previous]
+        self.owner.data[name] = self
+        self._name = name
+        if self.owner.rewrite_references:
+            for parameter in self.owner.data.values():
+                parameter._expression = d._NAME.sub(lambda match: name if match.group(0) == previous else match.group(0), parameter._expression)
+        if self.owner.fail_rename_to == name:
+            self.owner.fail_rename_to = None
+            raise RuntimeError("injected partial rename failure")
     @property
     def expression(self): return self._expression
     @expression.setter
@@ -56,7 +73,9 @@ class Parameter:
 
 
 class Parameters:
-    def __init__(self, design): self.design = design; self.data = {}; self.fail_on = None
+    def __init__(self, design):
+        self.design = design; self.data = {}; self.fail_on = None
+        self.fail_rename_to = None; self.rewrite_references = True
     @property
     def count(self): return len(self.data)
     def item(self, index): return list(self.data.values())[index]
@@ -243,6 +262,9 @@ class DocumentTests(unittest.TestCase):
         self.addCleanup(self.api.stop)
     def create(self):
         return d.commit_candidate(self.design, self.spec, d.resolve_spec(self.design, self.spec), Body("original", True))
+    def create_legacy(self):
+        with patch.object(d, "_parameter_names", side_effect=lambda design, spec: d._legacy_parameter_names(spec)):
+            return self.create()
     def updated(self, record):
         spec = deepcopy(record.spec)
         spec["parameters"]["teeth"] = "30"
@@ -344,7 +366,10 @@ class DocumentTests(unittest.TestCase):
         self.assertEqual(len(d.records(self.design)), 1)
         self.assertEqual(d.find_record(self.design, record.id).spec, record.spec)
         self.assertEqual(d.current_spec(self.design, record), record.spec)
-        self.assertTrue(all(name.startswith("GS_") for name in record.parameter_names.values()))
+        self.assertEqual(record.parameter_names["module"], "Module_G1")
+        self.assertEqual(record.parameter_names["teeth"], "Teeth_G1")
+        self.assertEqual(record.parameter_names["bore"], "Bore_G1")
+        self.assertTrue(d.readable_parameter_names(record))
         self.assertEqual(record.feature.bodies.item(0).shape, "original")
         self.assertFalse(record.feature.editing)
 
@@ -362,6 +387,86 @@ class DocumentTests(unittest.TestCase):
         self.assertEqual(body.shape, "new")
         self.assertEqual(d.current_spec(self.design, updated)["parameters"]["width"], spec["parameters"]["width"])
         self.assertEqual(self.design.timeline.markerPosition, 9)
+
+    def test_readable_names_avoid_document_collisions_and_stay_stable(self):
+        self.design.userParameters.add("Other_G1", "1", "", "")
+        first, second = self.create(), self.create()
+        self.assertEqual(first.parameter_names["module"], "Module_G2")
+        self.assertEqual(second.parameter_names["module"], "Module_G3")
+        spec, values = self.updated(first)
+        spec["name"] = "A renamed gear / unicode 齿轮"
+        updated = d.commit_candidate(self.design, spec, values, Body("new", True), first)
+        self.assertEqual(updated.parameter_names, first.parameter_names)
+        self.assertEqual(d.find_record(self.design, first.id).parameter_names, first.parameter_names)
+
+    def test_readable_parameter_labels_cover_every_family(self):
+        self.assertEqual(set(d.PARAMETER_LABELS), set(FIELDS))
+        self.assertEqual(len(set(d.PARAMETER_LABELS.values())), len(FIELDS))
+        self.assertTrue(all(len(label + "_G1") <= 17 for label in d.PARAMETER_LABELS.values()))
+
+    def test_legacy_names_remain_editable_until_explicit_upgrade(self):
+        record = self.create_legacy()
+        self.assertFalse(d.readable_parameter_names(record))
+        spec, values = self.updated(record)
+        updated = d.commit_candidate(self.design, spec, values, Body("new", True), record)
+        self.assertEqual(updated.parameter_names, record.parameter_names)
+
+    def test_rename_retains_objects_external_dependencies_and_pending_table_edits(self):
+        record = self.create_legacy()
+        old_module = record.parameter_names["module"]
+        module = self.design.userParameters.itemByName(old_module)
+        self.design.userParameters.itemByName(record.parameter_names["width"]).expression = old_module + " * 9"
+        self.design.userParameters.itemByName(record.parameter_names["teeth"]).expression = "32"
+        external = self.design.userParameters.add("StockWidth", old_module + " * 3", "mm", "")
+        body = record.feature.bodies.item(0)
+        renamed = d.rename_parameters(self.design, record)
+        self.assertIs(self.design.userParameters.itemByName("Module_G1"), module)
+        self.assertEqual(external.expression, "Module_G1 * 3")
+        self.assertEqual(d.current_spec(self.design, renamed)["parameters"]["width"], "Module_G1 * 9")
+        self.assertEqual(d.current_spec(self.design, renamed)["parameters"]["teeth"], "32")
+        self.assertEqual(renamed.spec["parameters"]["teeth"], "24")
+        self.assertEqual(renamed.applied_values, record.applied_values)
+        self.assertIs(renamed.feature.bodies.item(0), body)
+        self.assertEqual(record.feature.updates, [])
+        self.assertFalse(record.feature.editing)
+
+    def test_rename_rewrites_other_gears_saved_expressions(self):
+        first = self.create_legacy()
+        old_module = first.parameter_names["module"]
+        self.spec["parameters"]["module"] = old_module + " * 2"
+        second = self.create()
+        renamed = d.rename_parameters(self.design, first)
+        self.assertEqual(renamed.parameter_names["module"], "Module_G2")
+        second_live = d.find_record(self.design, second.id)
+        self.assertEqual(second_live.spec["parameters"]["module"], "Module_G2 * 2")
+        self.assertEqual(d.current_spec(self.design, second_live)["parameters"]["module"], "Module_G2 * 2")
+        self.assertEqual(second_live.parameter_names, second.parameter_names)
+        self.assertEqual(second_live.applied_values, second.applied_values)
+
+    def test_failed_rename_restores_names_expressions_and_definition(self):
+        for failure in ("rename", "metadata", "compute", "references"):
+            with self.subTest(failure=failure):
+                self.design = Design()
+                record = self.create_legacy()
+                old_module = record.parameter_names["module"]
+                external = self.design.userParameters.add("StockWidth", old_module + " * 3", "mm", "")
+                expressions = {name: parameter.expression for name, parameter in self.design.userParameters.data.items()}
+                if failure == "rename": self.design.userParameters.fail_rename_to = "Teeth_G1"
+                elif failure == "metadata": record.feature.attributes.fail_next = True
+                elif failure == "compute": self.design.fail_compute_once = True
+                else: self.design.userParameters.rewrite_references = False
+                with self.assertRaisesRegex(d.DocumentError, "previous names and definitions were restored"):
+                    d.rename_parameters(self.design, record)
+                self.assert_restored(record, expressions)
+                self.assertEqual(external.expression, old_module + " * 3")
+                self.assertEqual(d.find_record(self.design, record.id).parameter_names, record.parameter_names)
+
+    def test_renaming_short_names_is_idempotent(self):
+        record = self.create()
+        with patch.object(self.design, "computeAll") as compute:
+            renamed = d.rename_parameters(self.design, record)
+        compute.assert_not_called()
+        self.assertEqual(renamed.parameter_names, record.parameter_names)
 
     def test_rename_updates_body_and_feature_without_renaming_part_root(self):
         record = self.create()

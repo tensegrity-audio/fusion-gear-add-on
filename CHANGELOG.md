@@ -2,6 +2,15 @@
 
 Changes describe source capabilities. Native Fusion verification is tracked separately in [docs/VERIFICATION.md](docs/VERIFICATION.md).
 
+## 0.2.0 readable parameters, shared interface and beginner setup - 2026-09-17
+
+- New gears use purpose-first parameters such as `Module_G1`, `Teeth_G1`, `FaceWidth_G1` and `Bore_G1`. Suffix allocation checks the design's existing parameters and saved mappings. Names remain stable across gear display-name edits.
+- Added **Shorten parameter names** for selected legacy gears. It renames existing native parameter objects, updates affected saved expressions, preserves pending parameter-table edits and restores previous names/definitions if the operation fails. Legacy names remain supported without an automatic migration. Native rename/Undo verification is pending.
+- Adopted the Laser Parameter Wizard's shared MADE colors, typography and 2 px corners, with compact headers, bordered groups, lime selection states and stable bottom actions. All assets remain local to Fusion.
+- Added a **Getting started** dialog with first-gear and editing guidance plus the actual loaded version and folder. Field tooltips expose actual parameter names; renaming preserves unsaved drafts.
+- Added the offline **START_HERE.html** guide and expanded installation documentation with one ZIP-to-Documents route, folder checks, checkpoints, create/save/export distinctions and explicit parameter editing. Packaged releases include the guide and design tokens.
+- Added nine Python regression checks and browser checks for alias upgrades, help/draft preservation, keyboard focus and five viewport sizes. Updated the interface screenshot and acceptance checklist.
+
 ## 0.1.3 parameter commit fix - 2026-09-16
 
 - Move user-parameter creation, expression updates and value verification before `BaseFeature.startEdit()`. Editing a Base Feature uses a direct-modeling context; writing parameters there was the likely cause of the reported `3 : this is not a parametric design` commit failure even with design history enabled.

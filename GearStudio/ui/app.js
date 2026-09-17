@@ -5,7 +5,7 @@
   const options = new URLSearchParams(window.location.search);
   const previewMode = options.get('preview') === '1' && options.get('host') !== 'fusion';
   const expectedHost = previewMode ? 'preview' : 'fusion';
-  const state = { catalog: null, spec: null, presets: [], selection: null, mode: 'create', host: 'connecting', connected: false, supportedKinds: [], drafts: {}, valid: false, busy: false, request: 0, actions: {}, validationRequest: null, validationTimer: null, timeout: null };
+  const state = { catalog: null, spec: null, presets: [], selection: null, mode: 'create', host: 'connecting', connected: false, supportedKinds: [], drafts: {}, parameterMaps: {}, valid: false, busy: false, request: 0, actions: {}, validationRequest: null, validationTimer: null, timeout: null };
   let connectionTimer, connectionDeadline;
 
   function transport() {
@@ -122,6 +122,8 @@
     field.appendChild(labelRow);
     const wrap = document.createElement('div'); wrap.className = 'input-wrap';
     const input = document.createElement('input'); input.type = 'text'; input.id = 'field-' + key; input.name = key; input.autocomplete = 'off'; input.spellcheck = false; input.value = state.spec.parameters[key] == null ? meta.default : state.spec.parameters[key]; input.setAttribute('aria-describedby', 'message-' + key + ' description-' + key); input.disabled = state.busy;
+    const names = state.parameterMaps[state.spec.id] || {};
+    if (names[key]) input.title = 'Fusion parameter: ' + names[key];
     input.addEventListener('input', () => { state.spec.parameters[key] = input.value; scheduleValidation(); }); wrap.appendChild(input);
     if (meta.unit) { const unit = document.createElement('span'); unit.className = 'input-unit'; unit.textContent = meta.unit === 'deg' ? '°' : meta.unit; wrap.appendChild(unit); }
     field.appendChild(wrap);
@@ -146,6 +148,8 @@
     $('configuration-mode').textContent = state.mode === 'edit' ? 'EDIT CONFIGURATION' : 'NEW CONFIGURATION';
     $('mode-chip').textContent = state.mode === 'edit' ? 'EDIT' : 'CREATE';
     $('gear-name').value = state.spec.name || '';
+    const names = state.parameterMaps[state.spec.id];
+    $('parameter-name-help').textContent = names && Object.keys(names).length ? 'This gear: ' + Object.values(names).slice(0, 3).join(' · ') + '. Hover over an input to see its parameter name.' : 'Names start with the setting: Module_G1, Teeth_G1, Bore_G1. Each gear gets its own G-number.';
     $('preview-title').textContent = family.id.includes('rack') ? 'Rack section' : family.id === 'worm' || family.id.includes('bevel') ? 'Side envelope' : family.id === 'crown' ? 'Face envelope' : family.id === 'worm_wheel' ? 'Axial envelope' : 'Axial profile';
     document.querySelector('.canvas-origin').textContent = family.id === 'worm' || family.id.includes('bevel') ? 'SIDE' : 'XY';
     const sections = $('parameter-sections'); sections.replaceChildren();
@@ -178,6 +182,8 @@
     $('selection-help').textContent = selected ? selected.stale ? 'Parameters changed. Use Update from Parameters to rebuild.' : 'Existing definition available for editing or duplication.' : 'Select a Gear Studio body or component in Fusion to edit it.';
     $('selection-dot').classList.toggle('selected', Boolean(selected));
     $('selection-dot').classList.toggle('stale', Boolean(selected && selected.stale));
+    $('parameter-upgrade').hidden = !selected || selected.readableParameterNames !== false;
+    $('rename-parameters').disabled = !selected || selected.readableParameterNames !== false || state.busy || !state.connected || state.host !== 'fusion';
     ['edit-selected', 'duplicate-selected', 'update-selected'].forEach((id) => { $(id).disabled = !selected || state.busy || !state.connected || state.host !== 'fusion'; });
   }
   function renderActions() {
@@ -319,6 +325,9 @@
     if (Object.prototype.hasOwnProperty.call(data, 'selection')) state.selection = data.selection;
     if (data.presets) state.presets = data.presets;
     if (data.spec) state.spec = clone(data.spec);
+    if (data.spec && data.spec.id && data.parameterNames) state.parameterMaps[data.spec.id] = clone(data.parameterNames);
+    if (data.version) $('installed-version').textContent = 'Gear Studio ' + data.version;
+    if (data.installationPath) $('installed-path').textContent = data.installationPath;
     if (data.mode) state.mode = data.mode;
     else if (data.spec) state.mode = data.spec.id ? 'edit' : 'create';
     $('host-label').textContent = state.host === 'preview' ? 'Interface preview' : 'Autodesk Fusion';
@@ -338,8 +347,19 @@
           const wasBusy = state.busy; setBusy(false);
           if (data.presets) { state.presets = data.presets; renderPresets(); }
           if (data.ok) {
+            if (data.renamedAliases) {
+              // Native renaming also updates expression references. Keep unsaved
+              // form/family drafts in step without replacing them with table values.
+              const rewrite = (expression) => expression.replace(/[\p{L}_$][\p{L}\p{N}_$°"]*/gu, (name) => data.renamedAliases[name] || name);
+              [state.spec, ...Object.values(state.drafts)].filter(Boolean).forEach((spec) => {
+                Object.keys(spec.parameters).forEach((field) => { spec.parameters[field] = rewrite(spec.parameters[field]); });
+              });
+            }
+            const gearId = data.gearId || (data.spec && data.spec.id);
+            if (gearId && data.parameterNames) state.parameterMaps[gearId] = clone(data.parameterNames);
+            if (Object.prototype.hasOwnProperty.call(data, 'selection')) state.selection = data.selection;
             if (data.spec) { state.spec = clone(data.spec); state.mode = data.mode || (data.spec.id ? 'edit' : 'create'); renderConfiguration(); scheduleValidation(0); }
-            else if (wasBusy) scheduleValidation(0);
+            else if (wasBusy) { renderConfiguration(); scheduleValidation(0); }
             if (data.message) toast(data.message, false);
           } else { showError(data.message || 'The action did not finish.'); }
         }
@@ -360,6 +380,14 @@
   $('duplicate-selected').addEventListener('click', () => send('duplicateSelected'));
   $('update-selected').addEventListener('click', () => { if (state.selection && !state.busy) { setBusy(true); send('updateSelected'); } });
   $('open-parameters').addEventListener('click', () => send('openParameters'));
+  $('rename-parameters').addEventListener('click', () => {
+    if ($('rename-parameters').disabled) return;
+    setBusy(true); $('cancel-build').disabled = true;
+    setFooter('Renaming parameters', 'Keeping the current gear geometry and expression references.', 'busy');
+    send('renameParameters');
+  });
+  $('open-guide').addEventListener('click', () => $('guide-dialog').showModal());
+  $('close-guide').addEventListener('click', () => $('guide-dialog').close());
   $('save-preset').addEventListener('click', () => { if (!state.valid || state.busy) return; $('preset-name').value = state.spec.name || ''; $('preset-dialog').showModal(); $('preset-name').focus(); $('preset-name').select(); });
   $('dismiss-preset').addEventListener('click', () => $('preset-dialog').close());
   $('preset-form').addEventListener('submit', (event) => { event.preventDefault(); const name = $('preset-name').value.trim(); if (!name || !state.valid) return; $('preset-dialog').close(); send('savePreset', { name, spec: clone(state.spec) }); });

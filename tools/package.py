@@ -18,7 +18,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 TOP_FILES = (
-    "README.md", "LICENSE", "CONTRACT.md", ".gitignore", ".gitattributes",
+    "README.md", "START_HERE.html", "LICENSE", "CONTRACT.md", ".gitignore", ".gitattributes",
     "CHANGELOG.md", "CONTRIBUTING.md", "package.json", "package-lock.json",
     "install_windows.ps1", "install_macos.command",
 )
@@ -32,7 +32,7 @@ REQUIRED = (
     "GearStudio/vendor/study_gears/LICENSE.txt",
     "GearStudio/vendor/study_gears/lib/fusion_helper/LICENSE.txt",
     "GearStudio/vendor/study_gears/UPSTREAM.md",
-    "README.md", "LICENSE", "docs/INSTALL.md", "docs/ACCEPTANCE.md",
+    "README.md", "START_HERE.html", "GearStudio/ui/tokens.css", "LICENSE", "docs/INSTALL.md", "docs/ACCEPTANCE.md",
     "docs/ARCHITECTURE.md", "install_windows.ps1", "install_macos.command",
 )
 EXCLUDED_DIRS = {

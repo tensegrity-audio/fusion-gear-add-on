@@ -27,8 +27,10 @@ def template_spec(spec, parameter_names=None):
     """Return an independent definition without ``id`` or ``placement``.
 
     ``parameter_names`` maps source field keys to their managed Fusion aliases.
-    If omitted, the Gear Studio UUID-derived naming convention is used when the
-    definition has an ID. Only exact Unicode identifier tokens are replaced;
+    If omitted, the legacy UUID-derived naming convention is used when the
+    definition has an ID. Callers working with a saved gear must supply its
+    actual mapping, including the readable names introduced in 0.2.0.
+    Only exact Unicode identifier tokens are replaced;
     underscores, Unicode names and larger identifiers retain their boundaries.
     Each resulting expression is limited to 256 characters. Cycles, excessive
     dependency depth, or expansion work fail with an actionable TemplateError.

@@ -21,13 +21,14 @@ import adsk.core
 import adsk.fusion
 
 from ..core.catalog import catalog, default_spec
+from .. import __version__
 from ..core.storage import SettingsStore
 from ..core.validation import validate
 from ..core.profiles import preview
 from .builder import build_candidate, SUPPORTED_KINDS
 from .document import (
     resolve_spec, records, find_record, selected_record, current_spec,
-    commit_candidate,
+    commit_candidate, rename_parameters, readable_parameter_names,
 )
 
 
@@ -58,6 +59,7 @@ class PendingBuild:
     original_definition: str
     original_expressions: str
     candidate: object = None
+    operation: str = "build"
 
 
 def _fingerprint(spec):
@@ -270,7 +272,9 @@ class Controller:
                     stale = stale or not _same_values(values, record.applied_values)
                 except Exception:
                     stale = True
-                return {"id": record.spec["id"], "name": record.spec["name"], "stale": stale}
+                return {"id": record.spec["id"], "name": record.spec["name"], "stale": stale,
+                        "readableParameterNames": readable_parameter_names(record),
+                        "parameterNames": record.parameter_names}
         except Exception:
             return None
         return None
@@ -289,7 +293,15 @@ class Controller:
             "presets": self.safe_presets(), "selection": self._selection_summary(),
             "mode": "edit" if self.spec.get("id") else "create",
             "supportedKinds": sorted(SUPPORTED_KINDS), "host": "fusion",
+            "version": __version__, "installationPath": str(Path(__file__).resolve().parents[1]),
         }
+        if self.spec.get("id"):
+            try:
+                payload["parameterNames"] = find_record(self.design(), self.spec["id"]).parameter_names
+            except ValueError:
+                # Validation reports missing/deleted definitions; opening help
+                # and the palette must still work without a resolvable gear.
+                payload["parameterNames"] = {}
         if request_id is not None:
             payload["requestId"] = request_id
         self.send("state", payload)
@@ -341,6 +353,8 @@ class Controller:
                 self.validate_for_ui(data.get("spec"), request_id)
             elif action == "build":
                 self.begin_build(data.get("spec"))
+            elif action == "renameParameters":
+                self.begin_parameter_rename()
             elif action in ("editSelected", "duplicateSelected", "updateSelected"):
                 self.use_selected(action)
             elif action == "loadLast":
@@ -493,6 +507,28 @@ class Controller:
             self._finish_pending()
             raise
 
+    def begin_parameter_rename(self):
+        if getattr(self.ui, "activeCommand", "") not in ("", "SelectCommand"):
+            raise StudioError("Finish or cancel the active Fusion command before renaming parameters.")
+        design = self.design()
+        self._require_history(design)
+        record = self._require_record()
+        spec = current_spec(design, record)
+        self.pending = PendingBuild(
+            self.app.activeDocument, design, spec, resolve_spec(design, spec, record.parameter_names), record,
+            _fingerprint(record.spec), _fingerprint(spec["parameters"]), operation="renameParameters",
+        )
+        self.busy = True
+        self.cancel_requested = False
+        try:
+            self.send("progress", {"message": "Renaming the selected gear's parameters…", "percent": 50, "cancellable": False})
+            command = self.ui.commandDefinitions.itemById(COMMIT_ID)
+            if command is None or command.execute() is False:
+                raise StudioError("Fusion did not start the parameter update command. Restart the add-in and try again.")
+        except Exception:
+            self._finish_pending()
+            raise
+
     def _check_pending(self, pending):
         if self.cancel_requested or self.stopping:
             raise Cancelled("Build cancelled. The previous gear and saved defaults were retained.")
@@ -518,7 +554,10 @@ class Controller:
         self.handlers.append(handler)
         def on_destroy(event_args):
             if pending is not None and self.pending is pending and not self.committing:
-                self.report_error(Cancelled("The gear update command ended before applying the prepared solid."))
+                message = ("The parameter rename command ended before applying the new names."
+                           if pending.operation == "renameParameters"
+                           else "The gear update command ended before applying the prepared solid.")
+                self.report_error(Cancelled(message))
                 self._finish_pending()
             for owned in (handler, destroy):
                 if owned in self.handlers:
@@ -540,6 +579,18 @@ class Controller:
         self.committing = True
         try:
             self._check_pending(pending)
+            if pending.operation == "renameParameters":
+                previous = pending.record.parameter_names
+                record = rename_parameters(pending.design, pending.record)
+                self.spec = current_spec(pending.design, record)
+                self.editing_id = record.id
+                self.send("result", {
+                    "ok": True, "message": "Parameter names shortened. Gear geometry is unchanged.",
+                    "renamedAliases": {previous[field]: name for field, name in record.parameter_names.items()},
+                    "gearId": record.id, "parameterNames": record.parameter_names,
+                    "selection": self._selection_summary(),
+                })
+                return
             record = commit_candidate(pending.design, pending.spec, pending.values, pending.candidate.body, pending.record)
             self.spec = deepcopy(record.spec)
             self.editing_id = self.spec["id"]
@@ -550,7 +601,8 @@ class Controller:
                 self.log.exception("Gear committed, but preferences could not be saved")
                 message += " The gear is saved in this design; last-used settings could not be written."
             self.send("progress", {"message": message, "percent": 100, "cancellable": False})
-            self.send("result", {"ok": True, "message": message, "spec": self.spec, "mode": "edit", "presets": self.safe_presets()})
+            self.send("result", {"ok": True, "message": message, "spec": self.spec, "mode": "edit", "presets": self.safe_presets(),
+                                 "parameterNames": record.parameter_names})
         except Exception as exc:
             try:
                 args.executeFailed = True

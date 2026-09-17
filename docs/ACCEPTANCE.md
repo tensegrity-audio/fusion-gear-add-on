@@ -1,6 +1,6 @@
 # Live Fusion acceptance checklist
 
-**Status: incomplete.** Windows reports include the command-ID failure, preview/connection failure and a later commit failure saying the design is not parametric. The latest screenshot reaches the native commit handler; successful gear creation and the 0.1.3 parameter correction await confirmation. The remaining checklist is pending live execution. Host-independent Python tests and browser rendering checks cannot establish that Fusion's modeling kernel, palettes, document transactions or installation paths work on a specific release.
+**Status: incomplete.** Windows reports include the command-ID failure, preview/connection failure and a later commit failure saying the design is not parametric. The 2026-09-17 screenshot shows real User Parameter rows with legacy names. It does not show the solid or establish native acceptance of creation, editing or the new 0.2.0 rename action. The remaining checklist is pending live execution. Host-independent Python tests and browser rendering checks cannot establish that Fusion's modeling kernel, palettes, document transactions or installation paths work on a specific release.
 
 ## Reported failure and retest
 
@@ -28,6 +28,8 @@ Record **Pass**, **Fail**, or **Not run** for each case, with the design file an
 
 ## Installation and interface
 
+- [ ] A beginner follows START_HERE.html from an extracted ZIP without a terminal or installer. Confirm the exact Documents folder, linked inner GearStudio folder, first solid and first edit.
+- [ ] Getting started shows the actual loaded version and folder, is usable while disconnected, and closes without replacing an expression draft. Compare the olive/lime interface at desktop and narrow Fusion palette sizes.
 - [ ] Close Fusion, put the repository in Documents/FusionAddins, link its inner GearStudio folder and run it without administrator access. Separately check the optional installer-managed layout if distributing those scripts.
 - [ ] Confirm the native panel changes from Connecting to Fusion to Autodesk Fusion, never Interface preview; default Spur validates and Create gear produces a B-rep in the active design.
 - [ ] Confirm startup and subsequent field edits do not produce unsupported `response` errors. If the bridge cannot connect, verify the bounded timeout and Retry connection control.
@@ -71,7 +73,10 @@ Additional family checks:
 
 ## Expressions and actual parameter use
 
-- [ ] With version 0.1.3 or later, create the default Spur in both Part and Hybrid designs with history enabled. Confirm one B-rep and its `GS_...` rows, edit teeth from 24 to 30 in the panel, then change the generated teeth parameter to 32 and use **Update from Parameters**. Confirm geometry follows each change, editing ends normally and design history stays enabled.
+- [ ] Create the default Spur in both Part and Hybrid designs with history enabled. In 0.2.0, confirm one B-rep and names such as `Module_G1` and `Teeth_G1`. Edit teeth from 24 to 30 in the panel, then change the generated teeth parameter to 32 and use **Update from Parameters**. Confirm geometry follows each change, editing ends normally and design history stays enabled.
+- [ ] Create two gears with the same display name and one unrelated native parameter ending in `_G1`. Confirm all generated names are unique, use one suffix per gear, and remain stable after renaming the gear and reopening the design.
+- [ ] Open a pre-0.2.0 gear with `GS_...` names. Confirm ordinary editing works before using Shorten parameter names. Add an external expression and another gear referencing its module, then shorten the selected gear's names. Verify both native expressions and saved gear definitions follow the new names, geometry stays unchanged, and pending table edits remain marked as needing an update.
+- [ ] Undo and Redo the name upgrade; confirm names, dependent expressions and saved mappings agree. Save/reopen and update from the renamed parameters. If an upgrade fails, verify complete restoration or explicit Undo guidance.
 - [ ] Create external `shaftDiameter` and `boreAllowance` length parameters. Enter `shaftDiameter + boreAllowance` for bore and build. Confirm the generated parameter retains the expression and the measured bore matches it.
 - [ ] Change `shaftDiameter` in Fusion's Parameters dialog. Confirm the add-in identifies changed inputs on refresh/edit, and geometry changes only after **Update from Parameters**.
 - [ ] Change each family's tooth count or other principal count in the parameter table; explicitly update and measure the resulting geometry.
@@ -102,7 +107,7 @@ For each case, compare the existing component, source body, parameters and persi
 - [ ] Edit an existing gear, Undo and Redo. Verify the prior and updated geometry, parameter expressions and definition agree.
 - [ ] Move/place a component and create an assembly reference to its origin/axis/plane. Update tooth count and confirm component identity and placement remain.
 - [ ] Create a downstream operation or reference to a tooth face. Change tooth count and inspect reference health. Record limitations; a stable component does not guarantee stable tooth faces.
-- [ ] Duplicate using **Duplicate** in Gear Studio and update each independently. Confirm unique identities and parameters, including a source whose own fields reference its generated `GS_...` aliases.
+- [ ] Duplicate using **Duplicate** in Gear Studio and update each independently. Confirm unique identities and parameters, including sources whose own fields reference short aliases and legacy `GS_...` aliases.
 - [ ] Copy a component using ordinary Fusion copy/paste. Confirm duplicate identities are detected rather than silently editing both.
 - [ ] Try editing an unowned body, linked component or unsupported design mode. Confirm a clear rejection.
 - [ ] If a commit failure can be induced without corrupting the test host, confirm recovery restores body, parameters and definition or clearly reports incomplete recovery. Do not mark this case passed based only on candidate-build failure.

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark">
   <title>Gear Studio</title>
+  <link rel="stylesheet" href="tokens.css">
   <link rel="stylesheet" href="style.css">
   <script defer src="demo.js"></script>
   <script defer src="app.js"></script>
@@ -14,9 +15,9 @@
     <header class="app-header">
       <div class="brand">
         <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true"><path d="M16 3h8l1.3 5.2 3 1.7 5.2-1.5 4 6.9-3.9 3.8v3.5l3.9 3.8-4 6.9-5.2-1.5-3 1.7L24 39h-8l-1.3-5.5-3-1.7-5.2 1.5-4-6.9 3.9-3.8v-3.5l-3.9-3.8 4-6.9 5.2 1.5 3-1.7Z"/><circle cx="20" cy="21" r="7"/></svg>
-        <div><div class="brand-name">Gear Studio</div><div class="brand-caption">PRECISION IN MOTION</div></div>
+        <div class="brand-name">Gear Studio</div><span class="brand-caption">GEAR GENERATOR</span>
       </div>
-      <div class="header-right"><span class="solid-badge"><span></span>B-rep solids</span><span class="host-label" id="host-label">Connecting to Fusion</span><button id="new-gear" class="button subtle compact">+ New gear</button></div>
+      <div class="header-right"><span class="host-label" id="host-label">Connecting to Fusion</span><button id="open-guide" class="button subtle compact">Getting started</button><button id="new-gear" class="button subtle compact">+ New gear</button></div>
     </header>
 
     <div id="preview-notice" class="preview-notice" hidden><span class="notice-icon">i</span><span><strong>Interface preview</strong> Explore the controls and section preview. Creating or editing native solids requires Autodesk Fusion.</span></div>
@@ -44,13 +45,14 @@
           <div class="selection-copy"><strong id="selection-name">No managed gear selected</strong><span id="selection-help">Select a Gear Studio component in Fusion to edit it.</span></div>
           <button id="refresh-selection" class="icon-button" aria-label="Refresh Fusion selection" title="Refresh Fusion selection">↻</button>
           <div class="selection-actions"><button id="edit-selected" class="button subtle compact" disabled>Edit</button><button id="duplicate-selected" class="button subtle compact" disabled>Duplicate</button></div>
+          <div id="parameter-upgrade" class="parameter-upgrade" hidden><span>This gear uses the older long parameter names.</span><button id="rename-parameters" class="text-button" disabled>Shorten parameter names</button></div>
         </section>
 
         <form id="gear-form" novalidate>
           <div class="name-field"><label for="gear-name">Gear name</label><input id="gear-name" autocomplete="off" maxlength="80" placeholder="Drive gear"><span class="field-hint">A clear name keeps your assembly organized.</span></div>
           <div id="parameter-sections"></div>
         </form>
-        <div class="parameter-callout"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14M7 3v4M13 8v4M8 13v4"/></svg><p><strong>Expressions welcome.</strong> Use values such as <code>2 mm</code> or existing Fusion parameters. Apply parameter-table changes with <button id="update-selected" class="inline-button" disabled>Update from Parameters</button>.</p></div>
+        <section class="parameter-callout" aria-label="Fusion parameters"><div><strong>Fusion parameters</strong><p id="parameter-name-help">Names start with the setting: Module_G1, Teeth_G1, Bore_G1. Each gear gets its own G-number.</p><p>Use values such as <code>2 mm</code> or existing Fusion parameters. After editing Fusion's parameter table, select the gear and choose <button id="update-selected" class="inline-button" disabled>Update from Parameters</button>.</p></div></section>
       </main>
 
       <aside class="inspection-panel" aria-label="Gear inspection">
@@ -67,7 +69,7 @@
         <section class="metrics-section" aria-labelledby="metrics-title"><div class="panel-heading"><span class="eyebrow" id="metrics-title">GEOMETRY INSPECTION</span><span class="units-label">mm · degrees</span></div><div id="metrics-grid" class="metrics-grid"><div class="metric"><span>Pitch diameter</span><strong>···</strong></div><div class="metric"><span>Outside diameter</span><strong>···</strong></div></div></section>
 
         <section class="validation-section" aria-live="polite" aria-atomic="false"><div class="validation-heading"><span id="validation-indicator" class="status-indicator checking"></span><h2 id="validation-title">Checking configuration</h2></div><div id="validation-issues"></div><p id="validation-summary">Geometry is checked before a build begins.</p><div id="cost-summary" class="cost-summary" hidden></div></section>
-        <div class="build-note"><span class="note-number">01</span><p>Changes stay in the form until you create or update a gear. Replacement geometry is checked before the existing gear is changed.</p></div>
+        <div class="build-note"><p><strong>Create a solid in Fusion.</strong> The preview is a 2D section. Create gear adds the B-rep to your design; save the design to keep it.</p></div>
       </aside>
     </div>
 
@@ -79,5 +81,18 @@
   </div>
   <div id="toast" class="toast" role="status" hidden></div>
   <dialog id="preset-dialog"><form id="preset-form"><span class="eyebrow">YOUR GEAR LIBRARY</span><h2>Save a preset</h2><p>Store this configuration for the next design. References to your existing Fusion parameters remain editable expressions.</p><label for="preset-name">Preset name</label><input id="preset-name" maxlength="80" required placeholder="e.g. Small drive gear"><div class="dialog-actions"><button type="button" id="dismiss-preset" class="button subtle">Cancel</button><button type="submit" class="button primary">Save preset</button></div></form></dialog>
+  <dialog id="guide-dialog" aria-labelledby="guide-title">
+    <div class="guide-heading"><div><span class="eyebrow">QUICK START</span><h2 id="guide-title">Your first gear</h2></div><button id="close-guide" class="button subtle compact" aria-label="Close getting started">Close</button></div>
+    <ol class="guide-steps">
+      <li><strong>Open a design in Fusion.</strong><span>Use a new Part or Hybrid design with Capture Design History enabled. Finish any active sketch or command.</span></li>
+      <li><strong>Start with a Spur gear.</strong><span>Use module 1 mm, 24 teeth, pressure angle 20°, face width 8 mm and bore 5 mm. Keep the other defaults.</span></li>
+      <li><strong>Check, then create.</strong><span>Wait for validation and click Create gear. The solid appears in Fusion's canvas and Browser. The 2D preview alone is not a created gear.</span></li>
+      <li><strong>Save and edit.</strong><span>Save the Fusion design. To change the gear later, select its body, click the refresh arrow here, choose Edit, change a value and click Update gear.</span></li>
+    </ol>
+    <details class="guide-detail"><summary>Change values in Fusion's Parameters dialog</summary><p>Open Parameters using the button below the workspace. Edit a row such as <code>Teeth_G1</code>, then close the dialog, select the gear and choose <strong>Update from Parameters</strong>. Parameter edits need this explicit update before the gear changes.</p><p>The G-number identifies a gear in this design. Names stay stable when you rename a gear. For older gears, select the body, refresh selection and choose <strong>Shorten parameter names</strong>.</p></details>
+    <details class="guide-detail"><summary>Install on another computer</summary><ol><li>Download the GitHub repository ZIP and choose <strong>Extract All</strong>.</li><li>Put the extracted project in <strong>Documents / FusionAddins / fusion-gear-add-on</strong>. It should directly contain README.md and the GearStudio folder.</li><li>In Fusion, open <strong>Utilities → Add-Ins → Scripts and Add-Ins</strong>. Choose <strong>+ → Script or add-in from device</strong> and select the inner <strong>GearStudio</strong> folder. In the older dialog, use the Add-Ins tab's + button.</li><li>Select GearStudio, click <strong>Run</strong>, and enable <strong>Run on Startup</strong> after it works. Keep the linked folder in Documents.</li></ol><p>Open <strong>START_HERE.html</strong> in the extracted project for the full illustrated folder check and instructions. The ZIP route needs no installer script, terminal or separate Python installation.</p></details>
+    <details class="guide-detail"><summary>Create, save and export are different steps</summary><p><strong>Create gear</strong> makes a native B-rep inside the current design. <strong>Save</strong> in Fusion preserves the gear and its editable Gear Studio definition. Use Fusion's <strong>Export</strong> command when you need an interchange file such as STEP; the Gear Studio definition stays in the Fusion design.</p></details>
+    <div class="guide-install"><span id="installed-version">Gear Studio</span><span id="installed-path">Open this add-in inside Autodesk Fusion to see its installed location.</span></div>
+  </dialog>
 </body>
 </html>

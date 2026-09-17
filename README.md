@@ -23,13 +23,15 @@ The [verification record](docs/VERIFICATION.md) separates completed automated ch
 
 ## Get started
 
+**New to Fusion add-ins? Start with the [step-by-step installation guide](docs/INSTALL.md#windows-download-and-install).** After extracting the download, double-click **START_HERE.html** for a readable setup guide in your browser. It works without a local server. The same first-gear guidance is available through **Getting started** inside the panel.
+
 **Keep Gear Studio in `Documents\FusionAddins\fusion-gear-add-on`.** The recommended installation links this folder inside Fusion. No PowerShell installer, Git or separate Python installation is needed for the ZIP route.
 
 1. Save your designs and close Fusion. On [GitHub](https://github.com/tensegrity-audio/fusion-gear-add-on), choose **Code > Download ZIP**, then use **Extract All** in File Explorer.
 2. Find the extracted folder that directly contains `README.md` and the inner `GearStudio` folder. Move that repository folder into **Documents > FusionAddins** and name it **fusion-gear-add-on**. Create FusionAddins if needed.
 3. Start Fusion and open **Utilities > Add-Ins > Scripts and Add-Ins**. Choose **+ > Script or add-in from device** and select **Documents > FusionAddins > fusion-gear-add-on > GearStudio**. In the older dialog, use the **Add-Ins** tab's **+** button.
 4. Select **GearStudio**, click **Run**, and optionally enable **Run on Startup**. Keep the linked folder in Documents.
-5. Open a new Part or Hybrid design with **Capture Design History** enabled. Start with the default **Spur** settings for your first verification.
+5. Open a new Part or Hybrid design with **Capture Design History** enabled. Choose **Spur**, wait for validation, then click **Create gear**. Confirm a body appears in Fusion's canvas and Browser. The 2D section alone is a preview.
 6. Select the generated body or component and choose **Edit** in Gear Studio to change it. Save the Fusion document to retain its gear definition.
 
 **[Full installation instructions](docs/INSTALL.md)** include the exact folder checks, Windows Git commands that locate your configured Documents folder, moving an existing copy, updates, macOS and troubleshooting. If the destination already exists, use the update or move instructions instead of overwriting it. The `.ps1` and `.command` installers are optional alternatives that copy to a different location; they are not part of the recommended Documents setup.
@@ -51,7 +53,9 @@ These are **13 individual gear variants**, not an automatic paired-gear or gearb
 
 ## Editing and parameters
 
-Gear Studio stores each gear's expression strings and identity on its managed Fusion BaseFeature. It creates named Fusion user parameters such as `GS_<gear-id>_module` and `GS_<gear-id>_teeth`. The generated names are intentionally unique; parameter comments identify the inputs. A Hybrid design receives a component per new gear. A Part design stores the managed body in its root component; select the body when several gears share that component.
+Gear Studio stores each gear's expression strings and identity on its managed Fusion BaseFeature. New gears receive short, purpose-first user parameters: `Module_G1`, `Teeth_G1`, `PressureAngle_G1`, `FaceWidth_G1`, `Bore_G1`. A second gear uses G2, and so on, skipping numbers already used in the design. The useful part remains visible in narrow parameter columns. Comments identify the full gear name; renaming a gear does not change its parameter names. A Hybrid design receives a component per new gear. A Part design stores the managed body in its root component; select the body when several gears share that component.
+
+**Already have the older long `GS_...` names?** Select the body, refresh the panel's selection, and choose **Shorten parameter names**. This renames the native parameters and saved references without rebuilding the body, including references in other managed gear definitions. It preserves pending table edits for a later explicit update. Existing long names remain supported until you choose this action. Native rename/undo verification is tracked in the acceptance checklist.
 
 - **Edit:** Load the selected generated gear, change its expressions, validate and update the existing solid.
 - **Update from Parameters:** Change the gear's rows in Fusion's **Modify > Change Parameters** dialog, select the gear, then explicitly update it in Gear Studio.
@@ -60,6 +64,10 @@ Gear Studio stores each gear's expression strings and identity on its managed Fu
 **Parameter changes do not automatically regenerate gear geometry.** The explicit update action reads the current expressions, validates them and rebuilds the solid. The add-in does not rely on Fusion's preview Custom Features API. If another generated gear references these parameters, explicitly update that dependent gear too.
 
 Expressions such as `shaftDiameter + boreAllowance` remain expressions. Referenced parameters must exist in the current document and have compatible units. Do not rename or delete the generated parameter rows: Gear Studio uses their names to locate its inputs.
+
+## Interface and help
+
+The interface uses the Laser Parameter Wizard's MADE color, type and radius tokens: dark olive surfaces, lime selected states, compact headers, square controls and monospaced measurements. All assets are local, so Fusion needs no web server or remote fonts. **Getting started** explains create/save/export, both editing routes, setup on another computer, and the actual loaded version and installation folder. [UI conventions](docs/UI.md) records the source and maintenance rules.
 
 On update, the existing component, placement and managed source body are retained. Tooth-face and edge references can change when topology changes, particularly after a tooth-count edit. Prefer component origins, construction axes and planes for assembly references, and inspect downstream features after updating.
 

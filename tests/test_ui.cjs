@@ -88,6 +88,38 @@ const clone = (value) => JSON.parse(JSON.stringify(value));
   assert.equal(await page.locator('#field-module').inputValue(), 'moduleMaster');
   assert.equal(await page.locator('#field-teeth').isEnabled(), true);
 
+  // Help must work without resetting the current edited gear or form draft.
+  await page.locator('#field-teeth').fill('31');
+  await page.locator('#open-guide').click();
+  assert.equal(await page.locator('#guide-dialog').isVisible(), true);
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('#guide-dialog').isVisible(), false);
+  assert.equal(await page.locator('#field-teeth').inputValue(), '31');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'open-guide');
+
+  // An explicit alias upgrade must keep unsaved values and family drafts.
+  await page.locator('#field-width').fill('GS_old_module * 9');
+  await page.locator('[data-kind="helical"]').click();
+  await page.locator('#field-module').fill('GS_old_module * 2 + GS_old_module_backup');
+  await page.locator('[data-kind="spur"]').click();
+  await emit('selection', { id: 'managed-id', name: editSpec.name, readableParameterNames: false });
+  assert.equal(await page.locator('#rename-parameters').isEnabled(), true);
+  const buildsBeforeRename = await page.evaluate(() => window.__requests.filter((request) => request.action === 'build').length);
+  await page.locator('#rename-parameters').click();
+  assert.equal((await last('renameParameters')).action, 'renameParameters');
+  assert.equal(await page.locator('#rename-parameters').isEnabled(), false);
+  await emit('result', { ok: true, gearId: 'managed-id', renamedAliases: { GS_old_module: 'Module_G1' },
+    parameterNames: { module: 'Module_G1', teeth: 'Teeth_G1', width: 'FaceWidth_G1' },
+    selection: { id: 'managed-id', name: editSpec.name, readableParameterNames: true }, message: 'Parameter names shortened.' });
+  assert.equal(await page.locator('#field-width').inputValue(), 'Module_G1 * 9');
+  assert.equal(await page.locator('#field-teeth').inputValue(), '31', 'Renaming cannot replace unsaved values with the parameter table.');
+  assert.equal(await page.locator('#field-module').getAttribute('title'), 'Fusion parameter: Module_G1');
+  assert.equal(await page.locator('#parameter-upgrade').isVisible(), false);
+  assert.equal(await page.evaluate(() => window.__requests.filter((request) => request.action === 'build').length), buildsBeforeRename);
+  await page.locator('[data-kind="helical"]').click();
+  assert.equal(await page.locator('#field-module').inputValue(), 'Module_G1 * 2 + GS_old_module_backup', 'Other family drafts retain values and exact identifier boundaries.');
+  await page.locator('[data-kind="spur"]').click();
+
   await emit('state', Object.assign({}, initial, { host: 'preview' }));
   assert.equal(await page.locator('#host-label').innerText(), 'Autodesk Fusion', 'An unrelated preview message cannot change a native session.');
   assert.equal(await page.locator('#preview-notice').isVisible(), false);
@@ -170,6 +202,29 @@ const clone = (value) => JSON.parse(JSON.stringify(value));
   assert.equal(await preview.locator('#build-gear').isEnabled(), false, 'An explicit browser preview cannot create a solid.');
   assert.equal(await preview.locator('#preview-notice').isVisible(), true);
   assert.equal(await preview.evaluate(() => typeof window.adsk), 'undefined', 'Preview uses its own transport, never a fake native object.');
+  await preview.locator('#open-guide').click();
+  assert.equal(await preview.locator('#guide-dialog').isVisible(), true, 'Getting started also works before a native connection.');
+  await preview.locator('#close-guide').click();
+  for (const [width, height] of [[1440, 900], [1180, 760], [760, 800], [420, 860], [320, 700]]) {
+    await preview.setViewportSize({ width, height });
+    const layout = await preview.evaluate(() => {
+      const footer = document.querySelector('.action-bar').getBoundingClientRect();
+      const action = document.getElementById('build-gear').getBoundingClientRect();
+      return { width: document.documentElement.scrollWidth, footerBottom: footer.bottom, actionRight: action.right, actionBottom: action.bottom };
+    });
+    assert.ok(layout.width <= width, 'No document overflow at ' + width);
+    assert.ok(layout.footerBottom <= height + 1 && layout.actionBottom <= height + 1 && layout.actionRight <= width, 'Create remains visible at ' + width);
+    if (process.env.GEAR_STUDIO_SCREENSHOT_DIR && [1180, 420].includes(width)) {
+      fs.mkdirSync(process.env.GEAR_STUDIO_SCREENSHOT_DIR, { recursive: true });
+      await preview.screenshot({ path: path.join(process.env.GEAR_STUDIO_SCREENSHOT_DIR, 'gear-studio-' + width + '.png') });
+    }
+  }
+  if (process.env.GEAR_STUDIO_SCREENSHOT_DIR) {
+    await preview.setViewportSize({ width: 1180, height: 760 });
+    await preview.locator('#open-guide').click();
+    await preview.screenshot({ path: path.join(process.env.GEAR_STUDIO_SCREENSHOT_DIR, 'gear-studio-help.png') });
+    await preview.locator('#close-guide').click();
+  }
   assert.deepEqual(errors, [], 'The page must not produce runtime errors.');
-  console.log('PASS: validation, editing, cancellation, delayed native connection, lost handshake recovery, single build delivery, bounded retry, and isolated explicit preview.');
+  console.log('PASS: validation, editing, cancellation, connection recovery, preview isolation, readable-name upgrade, help draft preservation, and five responsive layouts.');
 })().catch((error) => { console.error(error); process.exitCode = 1; }).finally(async () => { if (browser) await browser.close(); await new Promise((resolve) => server.close(resolve)); });

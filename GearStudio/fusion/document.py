@@ -36,6 +36,18 @@ MAX_DEPENDENCY_DEPTH = 32
 # A number's scientific-notation exponent is never a parameter token.
 _NAME = re.compile(r'(?<![\w$\u00b0\u00b5"])(?:[^\W\d]|[$\u00b0"])[\w$\u00b0\u00b5"]*')
 _ID = re.compile(r"[A-Za-z0-9_-]{8,64}\Z")
+# Put the useful distinction first, so narrow Fusion columns remain readable.
+# The short G-number is allocated per design and saved with the definition.
+PARAMETER_LABELS = {
+    "module": "Module", "teeth": "Teeth", "pressure_angle": "PressureAngle",
+    "width": "FaceWidth", "bore": "Bore", "backlash": "ToothThinning",
+    "profile_shift": "ProfileShift", "addendum": "Addendum", "dedendum": "Dedendum",
+    "root_fillet": "RootFillet", "helix_angle": "HelixAngle",
+    "outside_diameter": "RingDiameter", "crown_base": "BaseThickness",
+    "rack_height": "RackHeight", "worm_diameter": "WormDiameter",
+    "worm_hand": "ThreadHand", "worm_starts": "WormStarts",
+    "mate_teeth": "MateTeeth", "shaft_angle": "ShaftAngle", "spiral_angle": "SpiralAngle",
+}
 
 
 class DocumentError(ValueError):
@@ -86,12 +98,39 @@ def _native(entity):
     return getattr(entity, "nativeObject", None) or entity
 
 
-def _parameter_names(spec):
+def _legacy_parameter_names(spec):
     identity = str(spec.get("id", ""))
     if not _ID.fullmatch(identity):
         raise DocumentError("This gear has an invalid identity. Duplicate it as a new gear.")
     prefix = re.sub(r"[^A-Za-z0-9]", "", identity)[:12]
     return {key: "GS_%s_%s" % (prefix, key) for key in spec["parameters"]}
+
+
+def readable_parameter_names(record):
+    suffixes = set()
+    for field, name in record.parameter_names.items():
+        match = re.fullmatch(re.escape(PARAMETER_LABELS[field]) + r"_G([1-9][0-9]*)", name)
+        if not match:
+            return False
+        suffixes.add(match.group(1))
+    return len(suffixes) == 1
+
+
+def _parameter_names(design, spec):
+    """Allocate a short, collision-free gear number without changing the design."""
+    parameters = _items(design.allParameters)
+    if len(parameters) > MAX_PARAMETER_GRAPH:
+        raise DocumentError("The design has too many parameters to allocate gear names safely.")
+    occupied = {parameter.name.casefold() for parameter in parameters}
+    # Reserve saved names too, including a gear with a missing parameter row.
+    for record in records(design):
+        occupied.update(name.casefold() for name in record.parameter_names.values())
+    used = {int(match.group(1)) for name in occupied
+            if (match := re.search(r"_g([1-9][0-9]*)$", name))}
+    for number in range(1, len(used) + 2):
+        if number not in used:
+            return {field: "%s_G%d" % (PARAMETER_LABELS[field], number) for field in spec["parameters"]}
+    raise DocumentError("Fusion could not allocate unique gear parameter names.")
 
 
 def _check_spec(spec):
@@ -153,7 +192,7 @@ class _Resolver:
     def __init__(self, design, spec, parameter_names):
         self.manager = design.unitsManager
         self.parameters = spec["parameters"]
-        self.names = parameter_names or (_parameter_names(spec) if spec.get("id") else {})
+        self.names = parameter_names or (_legacy_parameter_names(spec) if spec.get("id") else {})
         if set(self.names) - set(self.parameters) or len(set(self.names.values())) != len(self.names):
             raise DocumentError("The gear's saved parameter names are inconsistent. Reload its definition.")
         self.aliases = {name: field for field, name in self.names.items()}
@@ -290,7 +329,11 @@ def _record(feature, component):
         spec = data["spec"]
         _check_spec(spec)
         names = data["parameter_names"]
-        if set(names) != set(spec["parameters"]) or any(not isinstance(name, str) or not re.fullmatch(r"GS_[A-Za-z0-9_]+", name) for name in names.values()):
+        if set(names) != set(spec["parameters"]) or any(
+                not isinstance(name, str) or not (
+                    re.fullmatch(r"GS_[A-Za-z0-9_]+", name)
+                    or re.fullmatch(re.escape(PARAMETER_LABELS[field]) + r"_G[1-9][0-9]*", name))
+                for field, name in names.items()):
             raise ValueError("parameter names")
         if len(set(names.values())) != len(names):
             raise ValueError("duplicate parameter names")
@@ -535,6 +578,87 @@ def _dedicated_gear_component(design, record):
     return len(owned) == 1 and _same(owned[0], record.feature)
 
 
+def rename_parameters(design, record):
+    """Upgrade legacy names inside command.execute, without rebuilding a body.
+
+    Rename native parameter objects so Fusion can retain dependent references.
+    Rewrite saved expression text in every affected Gear Studio definition too.
+    The last applied values stay unchanged, including when table edits are pending.
+    Recovery reverses names and restores expression/metadata snapshots.
+    """
+    _check_design(design)
+    record = find_record(design, record.id)
+    if readable_parameter_names(record):
+        return record
+    current = current_spec(design, record)
+    values = resolve_spec(design, current, record.parameter_names)
+    names = _parameter_names(design, record.spec)
+    aliases = {record.parameter_names[field]: name for field, name in names.items()}
+    def rewrite(expression):
+        return _NAME.sub(lambda match: aliases.get(match.group(0), match.group(0)), expression)
+    changes = []
+    for field, old_name in record.parameter_names.items():
+        changes.append((design.userParameters.itemByName(old_name), old_name, names[field]))
+    expressions = [(parameter, parameter.expression) for parameter in _items(design.allParameters)]
+    definitions = []
+    for owned in records(design):
+        updated = deepcopy(owned.spec)
+        updated["parameters"] = {field: rewrite(expression) for field, expression in updated["parameters"].items()}
+        if owned.id == record.id or updated != owned.spec:
+            mapping = names if owned.id == record.id else owned.parameter_names
+            definitions.append((owned.feature, owned.feature.attributes.itemByName(ATTRIBUTE_GROUP, ATTRIBUTE_NAME).value,
+                                _metadata(updated, mapping, owned.applied_values)))
+    health = _health_snapshot(design)
+    attempted, written = [], []
+    try:
+        for parameter, old_name, new_name in changes:
+            attempted.append((parameter, old_name))
+            parameter.name = new_name
+            if parameter.name != new_name:
+                raise DocumentError("Fusion did not accept parameter name '%s'." % new_name)
+        for parameter, previous in expressions:
+            if rewrite(previous) != previous and any(token in aliases for token in _NAME.findall(parameter.expression)):
+                raise DocumentError("Fusion did not update a dependent expression after renaming. The previous names will be restored.")
+        renamed_record = GearRecord(record.spec, record.component, record.feature, names, record.applied_values)
+        renamed_current = current_spec(design, renamed_record)
+        after = resolve_spec(design, renamed_current, names)
+        if any(not math.isclose(values[field], after[field], rel_tol=1e-9, abs_tol=1e-9) for field in values):
+            raise DocumentError("Parameter values changed during renaming. The previous names will be restored.")
+        for feature, previous, updated in definitions:
+            written.append((feature, previous))
+            _write_metadata(feature, updated)
+        _check_success(design.computeAll(), "Fusion could not recompute after renaming parameters.")
+        _check_health(health)
+        return find_record(design, record.id)
+    except Exception as original:
+        recovery = []
+        for parameter, previous in reversed(attempted):
+            try:
+                parameter.name = previous
+                if parameter.name != previous:
+                    raise DocumentError("Fusion refused the previous name.")
+            except Exception as exc:
+                recovery.append("parameter name: %s" % exc)
+        for parameter, previous in expressions:
+            try:
+                if parameter.expression != previous:
+                    parameter.expression = previous
+            except Exception as exc:
+                recovery.append("dependent expression: %s" % exc)
+        for feature, previous in reversed(written):
+            try:
+                _write_metadata(feature, previous)
+            except Exception as exc:
+                recovery.append("saved definition: %s" % exc)
+        try:
+            _check_success(design.computeAll(), "Could not recompute the restored design.")
+        except Exception as exc:
+            recovery.append("recompute: %s" % exc)
+        if recovery:
+            raise DocumentError("Parameter renaming failed and Fusion could not completely restore the previous state. Use Undo now. Recovery details: " + "; ".join(recovery)) from original
+        raise DocumentError("Parameter names could not be changed. The previous names and definitions were restored. %s" % original) from original
+
+
 def commit_candidate(design, spec, values, candidate_body, record=None):
     """Commit a detached solid, restoring source body and inputs on failure.
 
@@ -560,7 +684,7 @@ def commit_candidate(design, spec, values, candidate_body, record=None):
         # Always generate a fresh identity for creation. The UI may have an old
         # draft ID; it must never accidentally claim another gear's parameters.
         spec["id"] = str(uuid.uuid4())
-        names = _parameter_names(spec)
+        names = _parameter_names(design, spec)
     resolved = resolve_spec(design, spec, names)
     if set(values) != set(resolved) or any(not math.isclose(float(values[key]), resolved[key], rel_tol=1e-9, abs_tol=1e-9) for key in resolved):
         raise DocumentError("Gear parameters changed while building. Validate and build again to use the current values.")
