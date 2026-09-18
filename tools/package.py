@@ -33,6 +33,7 @@ REQUIRED = (
     "GearStudio/vendor/study_gears/LICENSE.txt",
     "GearStudio/vendor/study_gears/lib/fusion_helper/LICENSE.txt",
     "GearStudio/vendor/study_gears/UPSTREAM.md",
+    "GearStudio/vendor/study_gears/sketch_constraints.py",
     "README.md", "START_HERE.html", "GearStudio/ui/tokens.css", "LICENSE", "docs/INSTALL.md", "docs/ACCEPTANCE.md",
     "docs/ARCHITECTURE.md", "install_windows.ps1", "install_macos.command",
 )

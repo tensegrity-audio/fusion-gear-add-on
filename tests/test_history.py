@@ -45,6 +45,7 @@ class Component:
         self.design = design
         self.attributes = Attributes()
         self.features = Features()
+        self.sketches = Items()
         self.bRepBodies = Items()
         self.occurrences = Occurrences(self)
         self.isValid = True
@@ -79,7 +80,8 @@ class HistoryTests(unittest.TestCase):
         self.generator.start(); self.addCleanup(self.generator.stop)
         self.values = d.resolve_spec(self.design, self.spec)
 
-    def generate(self, parent, kind, values, adsk):
+    def generate(self, parent, kind, values, adsk, parameter_names=None):
+        self.last_parameter_names = dict(parameter_names)
         body = deepcopy(self.candidate)
         body.parentComponent = parent
         parent.bRepBodies.items.append(body)
@@ -98,6 +100,10 @@ class HistoryTests(unittest.TestCase):
         self.assertEqual(sum(c.features.baseFeatures.count for c in self.design.allComponents), 0)
         self.assertTrue(record.component.isSketchFolderLightBulbOn)
         self.assertFalse(self.groups[0].isCollapsed)
+        self.assertEqual(self.last_parameter_names, record.parameter_names)
+        outer = self.design.rootComponent.occurrences.item(0)
+        self.assertFalse(outer.isGroundToParent)
+        self.assertTrue(h._generation(record).isGroundToParent)
         app = SimpleNamespace(activeProduct=self.design, userInterface=SimpleNamespace(
             activeSelections=Items([SimpleNamespace(entity=record.bodies[0])])) )
         self.assertEqual(d.selected_record(app).id, record.id)
@@ -119,6 +125,51 @@ class HistoryTests(unittest.TestCase):
         self.assertEqual(updated.parameter_names, record.parameter_names)
         self.assertEqual(len(d.records(self.design)), 1)
         self.assertEqual(updated.applied_values['teeth'], 32)
+        self.assertFalse(occurrence.isGroundToParent)
+
+    def test_old_bore_is_frozen_before_user_inputs_change_and_new_build_keeps_binding(self):
+        record = self.create()
+        previous = h._generation(record)
+        diameter = SimpleNamespace(parameter=SimpleNamespace(expression=record.parameter_names['bore']),
+                                   attributes=Attributes())
+        diameter.attributes.add(d.ATTRIBUTE_GROUP, h.DIAMETER_INPUT, 'bore')
+        unrelated = SimpleNamespace(parameter=SimpleNamespace(expression='shaftDiameter'), attributes=Attributes())
+        previous.component.sketches.items.append(SimpleNamespace(sketchDimensions=Items([diameter, unrelated])))
+        external = SimpleNamespace(parameter=SimpleNamespace(expression=record.parameter_names['bore']), attributes=Attributes())
+        external.attributes.add(d.ATTRIBUTE_GROUP, h.DIAMETER_INPUT, 'bore')
+        self.design.rootComponent.sketches.items.append(SimpleNamespace(
+            sketchDimensions=Items([external]), isValid=True))
+        spec = deepcopy(record.spec)
+        spec['parameters']['module'] = '2 mm'
+        spec['parameters']['bore'] = '30 mm'
+        values = d.resolve_spec(self.design, spec, record.parameter_names)
+        apply = d._apply_parameters
+        def assert_old_size(*args, **kwargs):
+            self.assertAlmostEqual(self.design.unitsManager.evaluateExpression(diameter.parameter.expression, 'mm'), .5)
+            self.assertNotIn(record.parameter_names['bore'], diameter.parameter.expression)
+            self.assertEqual(unrelated.parameter.expression, 'shaftDiameter')
+            self.assertEqual(external.parameter.expression, record.parameter_names['bore'])
+            return apply(*args, **kwargs)
+        with patch.object(d, '_apply_parameters', side_effect=assert_old_size):
+            updated = h.commit_history(self.design, spec, values, self.candidate, record)
+        self.assertEqual(self.last_parameter_names, record.parameter_names)
+        self.assertEqual(updated.applied_values['bore'], 30)
+
+    def test_failed_dimension_detach_aborts_before_parameter_mutation(self):
+        record = self.create(); previous = h._generation(record)
+        class RefusingParameter:
+            @property
+            def expression(self): return record.parameter_names['bore']
+            @expression.setter
+            def expression(self, value): raise RuntimeError('diameter cannot be edited')
+        dimension = SimpleNamespace(parameter=RefusingParameter(), attributes=Attributes())
+        dimension.attributes.add(d.ATTRIBUTE_GROUP, h.DIAMETER_INPUT, 'bore')
+        previous.component.sketches.items.append(SimpleNamespace(sketchDimensions=Items([dimension])))
+        with patch.object(d, '_apply_parameters') as apply:
+            with self.assertRaisesRegex(d.DocumentError, 'rolled back.*diameter cannot be edited'):
+                h.commit_history(self.design, record.spec, self.values, self.candidate, record)
+            apply.assert_not_called()
+        self.assertTrue(previous.isValid)
 
     def test_failed_staged_build_keeps_old_generation_until_command_abort(self):
         record = self.create(); previous = h._generation(record)

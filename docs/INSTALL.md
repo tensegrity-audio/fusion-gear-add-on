@@ -113,7 +113,9 @@ New names put the setting first (`Bore_G1`, `FaceWidth_G1`) so they remain disti
 
 The upgrade applies to the active Fusion design. External text files and presets that reference another gear's old names may need those expressions updated when reused. Presets already expand their source gear's own names into independent expressions. Use version 0.2.0 or later to edit a design with short parameter names; older add-in versions do not understand those saved mappings.
 
-Both edit paths explicitly rebuild a B-rep solid. Parameter-table changes alone do not regenerate geometry. If validation or a build fails, resolve the reported input problem before using the previous geometry as an updated result.
+Both edit paths rebuild and validate the complete B-rep solid. In 0.3.2, an existing shaft bore also responds directly to its `Bore_G1` parameter through a centered, diameter-constrained sketch. Tooth profiles and the other generated operations still require **Update from Parameters**. Finish table edits with this action so the full definition is checked and saved.
+
+For validation before geometry changes, use **Gear Studio > Edit > Update gear**. Fusion applies direct parameter-table edits immediately to the bore, before Gear Studio can check them. If an impossible diameter produces a failed feature, Undo the table edit or restore a valid diameter. Use the Gear Studio panel when adding/removing the bore (0 mm), or changing tooth size and bore size together.
 
 ## Move a gear with its sketches
 
@@ -125,6 +127,15 @@ Both edit paths explicitly rebuild a B-rep solid. Parameter-table changes alone 
 
 Keep your own sketches and downstream modifications outside the generated Construction child. Edits inside it are replaced by Update gear. References to generated faces or bodies may prevent an update; references to the outer component's origin and axes are more stable. Use Fusion Undo to undo the complete Gear Studio command.
 
+### Upgrade loose sketches in an existing gear
+
+1. Save the design and **fully close Fusion**. Replace the loaded add-in folder using the update instructions below.
+2. Restart Fusion. In Gear Studio's **Getting started**, confirm **0.3.2** and your Documents installation path.
+3. Select the existing gear, refresh selection, choose **Edit**, then **Update gear**. This rebuilds its generated sketches with constraints and preserves the outer component's placement. Simply restarting does not rewrite old geometry.
+4. Expand **Construction > ... > Gear body and sketches > Sketches**. Edit **Shaft bore cutter profile**. Its center should stay on the local origin, its diameter expression should reference `Bore_G1` (or your gear's alias), and it should report fully constrained. Finish Sketch.
+5. Inspect **Pitch circle and shaft axis** and **Tooth groove profile** for a cylindrical gear. The shaft line is construction geometry with locked endpoints, and generated profiles should not drag or stretch. Their calculated shape changes through Gear Studio inputs and Update gear.
+6. Move the **outer component**, not individual sketch entities or the body. The component is intentionally free to position within the assembly even though the sketches inside it are constrained to their local origin.
+
 ### Existing gears with only a Base Feature
 
 They remain editable through the legacy update path. Their discarded construction steps cannot be recovered from the old body. To rebuild one with history, select it, refresh Gear Studio's selection, choose **Duplicate**, then **Create gear** in a Hybrid design. Inspect and position the new independent gear before removing the old one. Duplicate creates new parameter names; it does not transfer downstream face references. In a Part design, you can reuse the same settings in a new Hybrid design instead.
@@ -133,7 +144,7 @@ They remain editable through the legacy update path. Their discarded constructio
 
 1. Save your Fusion designs and close Fusion completely so Python modules and cached icons unload.
 2. Follow the update instructions below for your existing Documents installation. Keep only one linked GearStudio copy; do not accidentally run an older copy from Downloads or the optional installer directory.
-3. Start Fusion, run GearStudio, and open **Getting started**. Confirm **Gear Studio 0.3.1** and the intended Documents path.
+3. Start Fusion, run GearStudio, and open **Getting started**. Confirm **Gear Studio 0.3.2** and the intended Documents path.
 4. Create a new Hybrid design and a new default Helical gear, then a Herringbone gear. Check for full tooth spaces all around, a shaft bore, visible sketches and an expanded timeline group.
 5. Close the palette and reopen it from **Design > Solid > Create > Gear Studio**. It is also registered under **Utilities > Add-Ins**. Restart with Run on Startup enabled and check the command reappears without toggling the add-in. The palette need not open automatically on startup.
 
@@ -359,7 +370,7 @@ Follow [Update an installation](#update-an-installation) with Fusion fully close
 | Named expression is invalid | Define the referenced parameter in this design and check its units. Presets do not bring unrelated document parameters with them. |
 | Generated parameter is missing or renamed | Restore the original name identified by the error in Change Parameters, then retry. Use Shorten parameter names in Gear Studio for upgrading legacy rows. |
 | Copied identity warning | Use **Duplicate** in Gear Studio to create independent definitions. Undo an ordinary copied component if it created duplicate identities. |
-| Parameters changed but the solid did not | Select the gear and use **Update from Parameters**. Automatic recomputation is not part of this release. |
+| Parameters changed but the complete solid did not | Select the gear and use **Update from Parameters**. Only an existing bore in gears built/updated with 0.3.2 has a live diameter binding; calculated tooth geometry still needs Update. |
 | Build rejected or cancelled | Read the field-specific message. The previous successful solid remains the reference until a subsequent update succeeds. |
 | Recovery or native API failure | Save a separate diagnostic copy if possible, record the Fusion version and reproduction steps, and inspect `GearStudio.log`. Complete the relevant checks in `ACCEPTANCE.md` before continuing to depend on the affected operation. |
 

@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from math import asin, atan2, cos, sin, isfinite, pi, radians
 
 from ..core.validation import validate
+from ..vendor.study_gears.sketch_constraints import centered_circle, require_constrained
 from ..vendor.study_gears.guard import (
     GeometryBudgetExceeded, GeometryCancelled, bounded, checkpoint,
 )
@@ -265,11 +266,12 @@ def _descendant_solids(component):
     return result
 
 
-def _native_cylinder(component, radius, z0, z1, adsk, name):
+def _native_cylinder(component, radius, z0, z1, adsk, name, diameter_expression=None, input_field=None):
     from ..vendor.study_gears.lib import fusion_helper as fh
     sketch = component.sketches.add(component.xYConstructionPlane)
     sketch.name = name + " profile"
-    sketch.sketchCurves.sketchCircles.addByCenterRadius(adsk.core.Point3D.create(), radius)
+    centered_circle(sketch, radius, adsk.core.Point3D.create, diameter_expression, input_field)
+    require_constrained(sketch)
     feature = fh.comp_extrude(component, sketch.profiles.item(0),
                               fh.FeatureOperations.new_body, z1 - z0, offset=z0)
     feature.name = name
@@ -327,10 +329,12 @@ def verify_tooth_spaces(body, kind, v, adsk):
                 raise BuildError("The tooth pattern is incomplete. No gear was committed.")
 
 
-def generate_native(parent, kind, v, adsk, report=lambda *args: None):
+def generate_native(parent, kind, v, adsk, report=lambda *args: None, parameter_names=None):
     """Construct real sketches/features under parent; return its single solid.
 
     Caller owns a bounded() scope and deletes the entire staged parent on error.
+    Target commits pass their parameter map for a live bore diameter expression;
+    disposable preflight sketches use an identical, explicitly unitized value.
     """
     from ..vendor.study_gears.lib import fusion_helper as fh
     from ..vendor.study_gears.gear_cylindrical import gear_cylindrical
@@ -450,7 +454,8 @@ def generate_native(parent, kind, v, adsk, report=lambda *args: None):
         bounds = body.boundingBox
         margin = max(0.1, width / 10)
         bore = _native_cylinder(body.parentComponent, v["bore"] / 20,
-                                bounds.minPoint.z - margin, bounds.maxPoint.z + margin, adsk, "Shaft bore cutter")
+                                bounds.minPoint.z - margin, bounds.maxPoint.z + margin, adsk, "Shaft bore cutter",
+                                (parameter_names or {}).get("bore"), "bore")
         fh.comp_combine(body.parentComponent, body, bore, fh.FeatureOperations.cut).name = "Cut shaft bore"
     body = _solid_in(body.parentComponent)
     _verify_solid(body)

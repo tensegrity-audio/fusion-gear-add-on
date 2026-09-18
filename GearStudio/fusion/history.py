@@ -11,6 +11,7 @@ import uuid
 from . import document as doc
 from .builder import generate_native, _verify_solid
 from ..vendor.study_gears.guard import bounded
+from ..vendor.study_gears.sketch_constraints import DIAMETER_INPUT
 
 GENERATION = "construction_generation"
 
@@ -62,6 +63,27 @@ def _external_state(design, old_components, old_generation):
     return result
 
 
+def _freeze_previous_diameters(components, applied_values):
+    """Keep the old construction at its last built size while staging an update.
+
+    A newly valid bore could exceed the OLD gear's root diameter. Detach only
+    our tagged diameter bindings before changing user inputs. Fusion's command
+    transaction restores these expressions too if any later operation fails.
+    Restoring last-applied values also repairs pending live bore edits before
+    replacing the old construction. External sketches are never modified here.
+    """
+    for component in components:
+        for sketch in doc._items(getattr(component, "sketches", None)):
+            for dimension in doc._items(sketch.sketchDimensions):
+                attribute = dimension.attributes.itemByName(doc.ATTRIBUTE_GROUP, DIAMETER_INPUT)
+                if attribute:
+                    field = attribute.value
+                    value = applied_values.get(field)
+                    if field != "bore" or value is None or not math.isfinite(value) or value <= 0:
+                        raise doc.DocumentError("The saved driving diameter is invalid. Undo the parameter edit before updating.")
+                    dimension.parameter.expression = doc._unit_literal(value, "mm")
+
+
 def commit_history(design, spec, values, candidate_body, record=None):
     """Replay the checked construction; preserve the outer gear's placement.
 
@@ -95,6 +117,8 @@ def commit_history(design, spec, values, candidate_body, record=None):
     import adsk
     external_health = _external_state(design, old_components, old_generation)
     try:
+        if record:
+            _freeze_previous_diameters(old_components, record.applied_values)
         doc._apply_parameters(design, spec, names, values, creating=record is None)
         if record:
             container = record.component
@@ -111,7 +135,7 @@ def commit_history(design, spec, values, candidate_body, record=None):
         # No event pumping inside the commit transaction. No document switching,
         # command re-entry, or creation replay from HTML readiness callbacks.
         with bounded(seconds=150, iterations=limit):
-            body = generate_native(generation.component, spec["kind"], values, adsk)
+            body = generate_native(generation.component, spec["kind"], values, adsk, parameter_names=names)
             _verify_solid(body)
         body.name = spec.get("name") or "Gear"
         body.parentComponent.name = "Gear body and sketches"

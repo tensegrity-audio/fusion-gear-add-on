@@ -3,7 +3,8 @@
 The stable API uses ordinary UserParameters. This module retains the legacy
 BaseFeature.updateBody commit; new native history commits live in history.py. Updates
 are explicit and must run inside a Fusion command execute handler (one undo item).
-No CustomFeatures preview APIs or automatic geometry recomputation are used.
+No CustomFeatures preview APIs are used. Complete gears rebuild explicitly;
+native-history shaft bores have live diameter bindings from version 0.3.2.
 
 Host units: evaluateExpression returns centimetres for lengths and radians for
 angles. Public numeric values in this module are millimetres/degrees/scalars.

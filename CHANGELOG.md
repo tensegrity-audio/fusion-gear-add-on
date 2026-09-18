@@ -2,6 +2,14 @@
 
 Changes describe source capabilities. Native Fusion verification is tracked separately in [docs/VERIFICATION.md](docs/VERIFICATION.md).
 
+## 0.3.2 constrained sketches and a parameter-driven bore - 2026-09-18
+
+- Bore sketches now have a local-origin coincidence and a driving diameter linked to the gear's saved bore parameter, such as `Bore_G1`. Ring/web circles receive centered driving dimensions too. Native circle/affected cylindrical sketch checks reject unresolved sketch freedom before committing.
+- Cylindrical calculated tooth profiles lock remaining points as well as curves. The shaft reference line is construction geometry with fixed endpoints; the pitch circle uses a centered driving diameter without a redundant Fix constraint. These calculated references and tooth profiles regenerate through Update gear.
+- Keep the outer component freely movable while its generated children and sketches stay rigid in local coordinates. Existing native-history gears receive the constraints on their next Update gear, preserving component placement.
+- Direct bore-parameter edits now invoke Fusion's native solver immediately. Documented the limited live-bore behavior, explicit full-gear Update requirement, and the panel path for validation before mutation or adding/removing a bore. Before staged updates, detach only tagged old bore dimensions to their last-applied sizes within the abortable native command, so a larger new bore does not invalidate the old smaller gear.
+- Added constraint, unit, alias-forwarding, placement and update-order regression checks. The user reports successful herringbone generation; native verification of the new constraints and live diameter remains pending.
+
 ## 0.3.1 Fusion entry-point version import - 2026-09-18
 
 - Fixed startup failing with `ImportError: cannot import name '__version__'`. Fusion loads `GearStudio.py` as a generated package and does not run the root `__init__.py`. The controller now imports release metadata from an explicit `version.py` module; the standard package re-exports the same value.

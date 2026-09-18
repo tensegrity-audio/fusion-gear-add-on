@@ -1,6 +1,7 @@
 # Vendored from Osamu Takeuchi, MIT. See LICENSE.txt and UPSTREAM.md.
 from __future__ import annotations
 from .guard import checkpoint
+from .sketch_constraints import centered_circle, fixed_reference_line, lock_generated_sketch, require_constrained
 from collections.abc import Callable
 from copy import copy
 from math import atan, cos, tan, pi, ceil, trunc
@@ -97,6 +98,7 @@ def gear_cylindrical(
     ).isFixed = True
 
     sketch.isComputeDeferred = False
+    lock_generated_sketch(sketch)
 
     # extrude the tip circle to generate a disk
     profiles = sorted(sketch.profiles, key=lambda p: p.boundingBox.minPoint.x)[
@@ -109,17 +111,14 @@ def gear_cylindrical(
     # draw the axis
     sketch2 = comp.sketches.add(comp.xYConstructionPlane)
     sketch2.name = "Pitch circle and shaft axis"
-    center_axis = sketch2.sketchCurves.sketchLines.addByTwoPoints(
-        fh.point3d(z=-thickness / 2), fh.point3d(z=thickness / 2)
+    center_axis = fixed_reference_line(
+        sketch2, fh.point3d(z=-thickness / 2), fh.point3d(z=thickness / 2)
     )
-    center_axis.isFixed = True
 
     # draw the reference circle
-    circle = sketch2.sketchCurves.sketchCircles.addByCenterRadius(fh.point3d(), mn * z / 2)
+    circle = centered_circle(sketch2, mn * z / 2, fh.point3d)
     circle.isConstruction = True
-    d = mn * z / 2
-    sketch2.sketchDimensions.addDiameterDimension(circle, fh.point3d(d, d), isDriving=True)
-    circle.isFixed = True
+    require_constrained(sketch2)
 
     # cut the groove from the disk
     teeth_profiles = sorted(  # two profiles from right

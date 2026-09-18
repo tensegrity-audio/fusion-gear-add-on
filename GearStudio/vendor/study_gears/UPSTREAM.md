@@ -23,6 +23,7 @@ requirement at runtime.
   Autodesk libraries. These are the `vector`, `gear_curve`, `math_bevel`,
   `math_worm_wheel`, and `math_crown` modules.
 - Deferred cylindrical sketch computation ends before requesting profiles.
+- Cylindrical calculated profiles lock remaining curve/point freedom after solving. Shaft reference lines have fixed endpoints and are construction geometry. Pitch circles and wrapper cylinder profiles use origin coincidence plus a driving diameter instead of an unconstrained center or a redundant fixed circle. Shaft bore diameters can bind to the owning gear's named parameter; calculated tooth/pitch geometry still regenerates explicitly. These constraint checks require native Fusion acceptance.
 - Rack and worm flank endpoints use the true circular-fillet tangent, avoiding
   inconsistent arc endpoints when the requested tool radius is below its limit.
 - Helical section-count estimation handles both signs of helix angle.
@@ -76,3 +77,6 @@ cancellation cannot interrupt one native modeling-kernel call already running.
 - [Temporary body transform](https://help.autodesk.com/cloudhelp/ENU/Fusion-360-API/files/fusion_TemporaryBRepManager_transform.htm)
 - [Document close and command-transaction restriction](https://help.autodesk.com/cloudhelp/ENU/Fusion-360-API/files/core_Document_close.htm)
 - [Design intent, including Part to Hybrid conversion](https://help.autodesk.com/cloudhelp/ENU/Fusion-360-API/files/fusion_Design_designIntent.htm)
+- [Sketch origin](https://help.autodesk.com/cloudhelp/ENU/Fusion-360-API/files/fusion_Sketch_originPoint.htm), [coincident constraints](https://help.autodesk.com/cloudhelp/ENU/Fusion-360-API/files/fusion_GeometricConstraints_addCoincident.htm) and [driving diameter dimensions](https://help.autodesk.com/cloudhelp/ENU/Fusion-360-API/files/fusion_SketchDimensions_addDiameterDimension.htm)
+- [Sketch dimension parameter](https://help.autodesk.com/cloudhelp/ENU/Fusion-360-API/files/fusion_SketchDimension_parameter.htm), [model parameter expressions](https://help.autodesk.com/cloudhelp/ENU/Fusion-360-API/files/fusion_ModelParameter_expression.htm) and [dimension attributes](https://help.autodesk.com/cloudhelp/ENU/Fusion-360-API/files/fusion_SketchDimension_attributes.htm)
+- [Fixed sketch points](https://help.autodesk.com/cloudhelp/ENU/Fusion-360-API/files/fusion_SketchPoint_isFixed.htm) and [fully constrained sketch status](https://help.autodesk.com/cloudhelp/ENU/Fusion-360-API/files/fusion_Sketch_isFullyConstrained.htm)
