@@ -21,7 +21,7 @@ import adsk.core
 import adsk.fusion
 
 from ..core.catalog import catalog, default_spec
-from .. import __version__
+from ..version import __version__
 from ..core.storage import SettingsStore
 from ..core.validation import validate
 from ..core.profiles import preview

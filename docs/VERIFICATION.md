@@ -1,10 +1,14 @@
 # Verification record
 
-Release: Gear Studio 0.3.0
+Release: Gear Studio 0.3.1
 
-Date: 2026-09-17
+Date: 2026-09-18
 
 Status: Evaluation build. Native Fusion acceptance is pending.
+
+## 0.3.1 reported entry-point import failure
+
+A Windows traceback shows `from .. import __version__` resolving to the generated `GearStudio.py` package rather than `__init__.py`. The loader regression reproduced that exact ImportError before the change. Importing the dedicated `version.py` module removes the package-initializer dependency. The regression now imports the complete controller dependency chain under the generated name and verifies run/stop delegation using host substitutes. Release versions agree across Python, the Fusion manifest and npm metadata. Actual Fusion startup confirmation remains pending.
 
 ## 0.3.0 reported geometry, history and startup defects
 
@@ -62,7 +66,7 @@ does not establish native API compatibility. Live retest remains pending.
 
 ## Completed in the development environment
 
-- **162 Python unittest checks passed.** They cover numeric and geometric validation, expression dimensions, bounded dependency resolution, persistence and independent templates, controller lifecycle, candidate cleanup, document update and rollback logic, and selected upstream mathematical invariants. The 0.1.1 addition exercises command and palette registration, toolbar reopening and shutdown through an API substitute with a conservative identifier restriction.
+- **164 Python unittest checks passed.** They cover numeric and geometric validation, expression dimensions, bounded dependency resolution, persistence and independent templates, controller lifecycle, candidate cleanup, document update and rollback logic, and selected upstream mathematical invariants. The 0.1.1 addition exercises command and palette registration, toolbar reopening and shutdown through an API substitute with a conservative identifier restriction.
 - Four 0.1.2 Python additions cover response acknowledgements, error-feedback suppression, correlated handshakes and delivery of an HTML build request into the candidate-preparation lifecycle through host substitutes.
 - Five 0.1.3 additions cover cleanup after partial parameter creation, parameter recovery after rejected edit entry, stage-specific native failures, chained tracebacks in the log and concise validation errors. All document mutation/recovery tests run with the parameter-mode restriction described above.
 - Nine 0.2.0 additions cover short-name allocation/collisions, stable names, family label coverage, legacy editing, native-object identity and pending edits during renaming, cross-gear saved expressions, recovery after partial renaming/metadata/recompute/reference failures, idempotence, and the native-command route without geometry preparation. Native name setters and dependent-reference rewriting are modeled by substitutes, not exercised in Fusion here.

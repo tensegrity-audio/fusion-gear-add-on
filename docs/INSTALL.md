@@ -133,7 +133,7 @@ They remain editable through the legacy update path. Their discarded constructio
 
 1. Save your Fusion designs and close Fusion completely so Python modules and cached icons unload.
 2. Follow the update instructions below for your existing Documents installation. Keep only one linked GearStudio copy; do not accidentally run an older copy from Downloads or the optional installer directory.
-3. Start Fusion, run GearStudio, and open **Getting started**. Confirm **Gear Studio 0.3.0** and the intended Documents path.
+3. Start Fusion, run GearStudio, and open **Getting started**. Confirm **Gear Studio 0.3.1** and the intended Documents path.
 4. Create a new Hybrid design and a new default Helical gear, then a Herringbone gear. Check for full tooth spaces all around, a shaft bore, visible sketches and an expanded timeline group.
 5. Close the palette and reopen it from **Design > Solid > Create > Gear Studio**. It is also registered under **Utilities > Add-Ins**. Restart with Run on Startup enabled and check the command reappears without toggling the add-in. The palette need not open automatically on startup.
 
@@ -362,3 +362,17 @@ Follow [Update an installation](#update-an-installation) with Fusion fully close
 | Parameters changed but the solid did not | Select the gear and use **Update from Parameters**. Automatic recomputation is not part of this release. |
 | Build rejected or cancelled | Read the field-specific message. The previous successful solid remains the reference until a subsequent update succeeds. |
 | Recovery or native API failure | Save a separate diagnostic copy if possible, record the Fusion version and reproduction steps, and inspect `GearStudio.log`. Complete the relevant checks in `ACCEPTANCE.md` before continuing to depend on the affected operation. |
+
+## Startup says it cannot import __version__
+
+This is an add-in loading bug fixed in **0.3.1**, not a missing Python installation. Fusion loads the entry point as a generated package without running `__init__.py`; the version is now imported from its own module.
+
+The reported traceback loads `C:\Users\griff\fusion-gear-add-on\GearStudio`, which is outside Documents. Updating a different copy will not fix the copy Fusion is running.
+
+1. Close Fusion completely. Download the latest repository ZIP and extract it. Keep the old folder as a backup until the new copy works.
+2. Put the folder containing README.md and GearStudio in **Documents > FusionAddins > fusion-gear-add-on**. If that destination already exists, follow the update instructions above; preserve your own changes instead of overwriting them blindly. Use File Explorer's Documents entry so redirected/OneDrive Documents locations are respected.
+3. Confirm the inner **GearStudio** folder contains **version.py**, **GearStudio.py** and **GearStudio.manifest**. The manifest should show **0.3.1**.
+4. Open Fusion's **Scripts and Add-Ins** window. Remove the old GearStudio list entry pointing outside Documents. This removes its Fusion registration; keep the backup folder on disk.
+5. Choose **+ > Script or add-in from device** and select **Documents > FusionAddins > fusion-gear-add-on > GearStudio**. Run it, then open **Getting started** and confirm version **0.3.1** and the correct loaded folder. Enable Run on Startup after it opens successfully.
+
+Do not install Python packages or change PowerShell execution policy to fix this import error.

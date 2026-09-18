@@ -2,6 +2,12 @@
 
 Changes describe source capabilities. Native Fusion verification is tracked separately in [docs/VERIFICATION.md](docs/VERIFICATION.md).
 
+## 0.3.1 Fusion entry-point version import - 2026-09-18
+
+- Fixed startup failing with `ImportError: cannot import name '__version__'`. Fusion loads `GearStudio.py` as a generated package and does not run the root `__init__.py`. The controller now imports release metadata from an explicit `version.py` module; the standard package re-exports the same value.
+- Added a loader regression that reproduces the reported encoded Windows module name without running the package initializer. It failed with the original traceback before the fix and now imports the controller and exercises entry-point run/stop delegation. Added release-version consistency checks and made the version module required in packages.
+- Added instructions for the reported installation path outside Documents, including removing the old Fusion link and linking the intended Documents copy. Native geometry acceptance from 0.3.0 remains pending.
+
 ## 0.3.0 construction history, tooth patterns and startup - 2026-09-17
 
 - Replaced cylindrical loft-cut feature patterns with solid cutter-body patterns and a combined subtraction. Added cutter-count and bounded tooth-space checks to reject a mostly cylindrical result. Native confirmation of the reported helical/herringbone defect is still required.

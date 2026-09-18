@@ -24,7 +24,7 @@ TOP_FILES = (
 )
 TOP_DIRS = ("GearStudio", "docs", "tests", "tools")
 REQUIRED = (
-    "GearStudio/GearStudio.py", "GearStudio/GearStudio.manifest",
+    "GearStudio/GearStudio.py", "GearStudio/GearStudio.manifest", "GearStudio/version.py",
     "GearStudio/fusion/builder.py", "GearStudio/fusion/history.py",
     "GearStudio/resources/16x16.svg", "GearStudio/resources/32x32.svg", "GearStudio/fusion/controller.py",
     "GearStudio/fusion/document.py", "GearStudio/core/catalog.py",
