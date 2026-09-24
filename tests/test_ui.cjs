@@ -51,6 +51,29 @@ const clone = (value) => JSON.parse(JSON.stringify(value));
   assert.equal(await page.locator('.preview-outline').count(), 1, 'Outline and bore must share an even-odd path.');
   assert.equal(await page.locator('.preview-outline').getAttribute('fill-rule'), 'evenodd');
 
+  // Parameter help is a real click/keyboard action, not a native title tooltip.
+  const moduleHelp = page.getByRole('button', { name: 'Help for Normal module', exact: true });
+  await moduleHelp.click();
+  assert.equal(await page.locator('#field-help-dialog').isVisible(), true);
+  assert.ok((await page.locator('#field-help-description').innerText()).length > 10);
+  await page.keyboard.press('Escape');
+  assert.equal(await moduleHelp.evaluate((node) => node === document.activeElement), true);
+  await page.keyboard.press('Enter');
+  assert.equal(await page.locator('#field-help-dialog').isVisible(), true);
+  await page.locator('#close-field-help').click();
+  await page.keyboard.press('Space');
+  assert.equal(await page.locator('#field-help-dialog').isVisible(), true);
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('#field-pressure_angle').isVisible(), false);
+  assert.equal(await page.locator('#field-width').isVisible(), true);
+  assert.equal(await page.locator('#field-bore').isVisible(), true);
+  assert.equal(await page.locator('#metrics-grid').isVisible(), false);
+  assert.equal(await last('build'), undefined, 'Help must not submit the gear form.');
+  const hiddenCheck = await last('validate');
+  await emit('validation', { requestId: hiddenCheck.requestId, valid: false, issues: [{field: 'pressure_angle', severity: 'error', message: 'Review pressure angle.'}], metrics: {}, cost: {} });
+  assert.equal(await page.locator('#field-pressure_angle').isVisible(), true, 'Hidden invalid fields must open automatically.');
+  await emit('validation', Object.assign(clone(data.samples.spur.validation), { requestId: hiddenCheck.requestId }));
+
   await page.locator('#field-module').fill('0 mm');
   assert.equal(await page.locator('#build-gear').isEnabled(), false, 'An edited input must immediately invalidate the build action.');
   const second = await waitValidation(first.requestId);

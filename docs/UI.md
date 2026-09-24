@@ -30,6 +30,10 @@ updating remain deliberate actions. A browser preview cannot create solids.
 
 ## Naming and help
 
+From 0.3.3, each information indicator is a button with an accessible field-specific name, opening a local help dialog on click, Enter or Space. Close/Escape restores focus without changing drafts or submitting the form. Hover titles are not the help mechanism. Repeated under-input descriptions are visually hidden but remain associated with their inputs for assistive technology.
+
+The initial view prioritizes module, tooth count, width and bore, plus required family-specific geometry. Pressure angle and tooth thinning live in the collapsed Tooth settings section. Advanced tooth geometry and Geometry measurements are also collapsed. An invalid field automatically opens its containing section. Empty selection retains the refresh action and guidance but hides disabled Edit/Duplicate controls. All fields and defaults remain in the submitted definition, including collapsed sections. The existing design tokens and one-workspace flow remain unchanged.
+
 New Fusion parameter names put the purpose first and a short gear number last:
 `Module_G1`, `Teeth_G1`, `Bore_G1`. The mapping is saved with the gear; changing its
 display name does not rename parameters. A selected legacy gear exposes **Shorten

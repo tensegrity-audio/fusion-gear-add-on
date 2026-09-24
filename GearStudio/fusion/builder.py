@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from math import asin, atan2, cos, sin, isfinite, pi, radians
 
 from ..core.validation import validate
-from ..vendor.study_gears.sketch_constraints import centered_circle, require_constrained
+from ..vendor.study_gears.sketch_constraints import centered_circle, require_constrained, SketchConstraintError
 from ..vendor.study_gears.guard import (
     GeometryBudgetExceeded, GeometryCancelled, bounded, checkpoint,
 )
@@ -148,6 +148,9 @@ def build_candidate(spec, values, progress=None, cancelled=None):
             report("Checking the solid", 90)
             _verify_solid(body)
             candidate = Candidate(body)
+    except SketchConstraintError as exc:
+        problem = BuildError("Fusion could not finish a generated sketch. " + str(exc) +
+                             " No gear was committed. Report this message with the Gear Studio and Fusion versions.")
     except (GeometryCancelled, GeometryBudgetExceeded, BuildError) as exc:
         problem = exc
     except Exception as exc:
@@ -270,8 +273,8 @@ def _native_cylinder(component, radius, z0, z1, adsk, name, diameter_expression=
     from ..vendor.study_gears.lib import fusion_helper as fh
     sketch = component.sketches.add(component.xYConstructionPlane)
     sketch.name = name + " profile"
-    centered_circle(sketch, radius, adsk.core.Point3D.create, diameter_expression, input_field)
-    require_constrained(sketch)
+    circle = centered_circle(sketch, radius, adsk.core.Point3D.create, diameter_expression, input_field)
+    require_constrained(sketch, (circle,))
     feature = fh.comp_extrude(component, sketch.profiles.item(0),
                               fh.FeatureOperations.new_body, z1 - z0, offset=z0)
     feature.name = name

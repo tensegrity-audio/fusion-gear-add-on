@@ -1,10 +1,18 @@
 # Verification record
 
-Release: Gear Studio 0.3.2
+Release: Gear Studio 0.3.3
 
-Date: 2026-09-18
+Date: 2026-09-24
 
 Status: Evaluation build. Native Fusion acceptance is pending.
+
+## 0.3.3 coworker build failure and field help
+
+The supplied September 24 screenshot shows a Hybrid design and a Spur build blocked by `The generated diameter or center is still unconstrained`, a check introduced in 0.3.2. It establishes a failure of that build gate, not invalid gear inputs. The exact Fusion build was not supplied. The screenshot does not prove why Fusion returned false, nor which circle was involved. Mixed planar circle/out-of-plane axis geometry was found in the reference sketch and is now separated.
+
+The circle helper now fixes only the center at the local origin and verifies its position, a driving dimension, evaluated diameter and actual radius. Verified circles do not depend on aggregate constraint flags; other geometry remains checked. A regression substitute reproduces false aggregate flags with valid dimensional constraints, and additional tests reject wrong diameters and free points. Error messages distinguish sketch construction failures from invalid inputs. These are boundary tests, not a reproduction of the native solver.
+
+Field information icons are real keyboard/click buttons opening local dialogs. The default view removes repeated descriptions and disabled empty-selection actions, and collapses tooth settings and measurements. Browser checks pass for help, focus restoration, no accidental build, hidden-error disclosure, draft preservation and five responsive widths. Desktop and narrow screenshots were reviewed. 175 Python checks, browser checks, compilation and package verification passed. Native default Spur/Helical/Herringbone builds and live bore drag/recompute checks remain pending.
 
 ## 0.3.2 reported loose bore and reference geometry
 
@@ -74,7 +82,7 @@ does not establish native API compatibility. Live retest remains pending.
 
 ## Completed in the development environment
 
-- **172 Python unittest checks passed.** They cover numeric and geometric validation, expression dimensions, bounded dependency resolution, persistence and independent templates, controller lifecycle, candidate cleanup, document update and rollback logic, and selected upstream mathematical invariants. The 0.1.1 addition exercises command and palette registration, toolbar reopening and shutdown through an API substitute with a conservative identifier restriction.
+- **175 Python unittest checks passed.** They cover numeric and geometric validation, expression dimensions, bounded dependency resolution, persistence and independent templates, controller lifecycle, candidate cleanup, document update and rollback logic, and selected upstream mathematical invariants. The 0.1.1 addition exercises command and palette registration, toolbar reopening and shutdown through an API substitute with a conservative identifier restriction.
 - Four 0.1.2 Python additions cover response acknowledgements, error-feedback suppression, correlated handshakes and delivery of an HTML build request into the candidate-preparation lifecycle through host substitutes.
 - Five 0.1.3 additions cover cleanup after partial parameter creation, parameter recovery after rejected edit entry, stage-specific native failures, chained tracebacks in the log and concise validation errors. All document mutation/recovery tests run with the parameter-mode restriction described above.
 - Nine 0.2.0 additions cover short-name allocation/collisions, stable names, family label coverage, legacy editing, native-object identity and pending edits during renaming, cross-gear saved expressions, recovery after partial renaming/metadata/recompute/reference failures, idempotence, and the native-command route without geometry preparation. Native name setters and dependent-reference rewriting are modeled by substitutes, not exercised in Fusion here.

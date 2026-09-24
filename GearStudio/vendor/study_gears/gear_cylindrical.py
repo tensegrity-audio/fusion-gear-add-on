@@ -108,17 +108,22 @@ def gear_cylindrical(
         comp, profiles, fh.FeatureOperations.new_body, thickness, True, True
     ).bodies[0]
 
-    # draw the axis
-    sketch2 = comp.sketches.add(comp.xYConstructionPlane)
-    sketch2.name = "Pitch circle and shaft axis"
+    # Keep the shaft line in its own planar sketch. A line along Z in an XY
+    # sketch mixes 3D reference geometry with the diameter-controlled circle.
+    axis_sketch = comp.sketches.add(comp.xZConstructionPlane)
+    axis_sketch.name = "Shaft axis"
     center_axis = fixed_reference_line(
-        sketch2, fh.point3d(z=-thickness / 2), fh.point3d(z=thickness / 2)
+        axis_sketch, fh.point3d(y=-thickness / 2), fh.point3d(y=thickness / 2)
     )
+    require_constrained(axis_sketch)
+    axis_sketch.isVisible = True
+    sketch2 = comp.sketches.add(comp.xYConstructionPlane)
+    sketch2.name = "Pitch circle"
 
     # draw the reference circle
     circle = centered_circle(sketch2, mn * z / 2, fh.point3d)
     circle.isConstruction = True
-    require_constrained(sketch2)
+    require_constrained(sketch2, (circle,))
 
     # cut the groove from the disk
     teeth_profiles = sorted(  # two profiles from right

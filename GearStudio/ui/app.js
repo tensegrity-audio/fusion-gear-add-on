@@ -118,7 +118,17 @@
     const label = document.createElement('label'); label.htmlFor = 'field-' + key; label.textContent = meta.label;
     if (key === 'module' && family.moduleConvention === 'outer normal') label.textContent = 'Outer normal module';
     labelRow.appendChild(label);
-    if (meta.description) { const tip = document.createElement('span'); tip.className = 'info-tip'; tip.textContent = 'i'; tip.title = meta.description; tip.tabIndex = 0; tip.setAttribute('aria-label', meta.description); labelRow.appendChild(tip); }
+    if (meta.description) {
+      const tip = document.createElement('button'); tip.type = 'button'; tip.className = 'info-tip'; tip.textContent = 'i';
+      tip.setAttribute('aria-label', 'Help for ' + label.textContent); tip.setAttribute('aria-haspopup', 'dialog');
+      tip.addEventListener('click', () => {
+        $('field-help-title').textContent = label.textContent;
+        $('field-help-description').textContent = meta.description;
+        $('field-help-example').textContent = 'Default: ' + String(Object.prototype.hasOwnProperty.call(family.defaults || {}, key) ? family.defaults[key] : meta.default) + '. You can also enter a Fusion parameter expression.';
+        $('field-help-dialog').showModal();
+      });
+      labelRow.appendChild(tip);
+    }
     field.appendChild(labelRow);
     const wrap = document.createElement('div'); wrap.className = 'input-wrap';
     const input = document.createElement('input'); input.type = 'text'; input.id = 'field-' + key; input.name = key; input.autocomplete = 'off'; input.spellcheck = false; input.value = state.spec.parameters[key] == null ? meta.default : state.spec.parameters[key]; input.setAttribute('aria-describedby', 'message-' + key + ' description-' + key); input.disabled = state.busy;
@@ -127,7 +137,7 @@
     input.addEventListener('input', () => { state.spec.parameters[key] = input.value; scheduleValidation(); }); wrap.appendChild(input);
     if (meta.unit) { const unit = document.createElement('span'); unit.className = 'input-unit'; unit.textContent = meta.unit === 'deg' ? '°' : meta.unit; wrap.appendChild(unit); }
     field.appendChild(wrap);
-    const description = document.createElement('span'); description.id = 'description-' + key; description.className = 'field-description';
+    const description = document.createElement('span'); description.id = 'description-' + key; description.className = 'field-description visually-hidden';
     if (key === 'module') description.textContent = family.moduleConvention === 'outer normal' ? 'Tooth size at the outer normal section.' : 'Tooth size in the normal plane.';
     else if (key === 'teeth' || key === 'worm_starts' || key === 'mate_teeth') description.textContent = 'Whole number or integer expression.';
     else if (key === 'backlash') description.textContent = 'Reduction on this gear, in the normal plane.';
@@ -154,11 +164,11 @@
     document.querySelector('.canvas-origin').textContent = family.id === 'worm' || family.id.includes('bevel') ? 'SIDE' : 'XY';
     const sections = $('parameter-sections'); sections.replaceChildren();
     const grouped = {};
-    family.fields.forEach((key) => { const group = fieldMetadata(key, family).group || 'Tooth system'; (grouped[group] || (grouped[group] = [])).push(key); });
+    family.fields.forEach((key) => { const group = ['pressure_angle', 'backlash'].includes(key) ? 'Tooth settings' : fieldMetadata(key, family).group || 'Tooth system'; (grouped[group] || (grouped[group] = [])).push(key); });
     let number = 1;
     ['Tooth system', 'Body', 'Pair geometry', ...Object.keys(grouped).filter((group) => !['Tooth system', 'Body', 'Pair geometry', 'Advanced'].includes(group)), 'Advanced'].forEach((group) => {
       if (!grouped[group]) return;
-      const advanced = group === 'Advanced';
+      const advanced = group === 'Advanced' || group === 'Tooth settings';
       const section = document.createElement(advanced ? 'details' : 'section'); section.className = advanced ? 'advanced-section' : 'parameter-section';
       const heading = document.createElement(advanced ? 'summary' : 'h2'); heading.className = advanced ? '' : 'section-title'; heading.textContent = { 'Tooth system': 'Tooth geometry', Body: 'Body & fit', 'Pair geometry': 'Mating geometry', Advanced: 'Advanced tooth geometry' }[group] || group;
       if (!advanced) { const counter = document.createElement('span'); counter.className = 'section-number'; counter.textContent = String(number++).padStart(2, '0'); heading.appendChild(counter); }
@@ -178,6 +188,7 @@
   }
   function renderSelection() {
     const selected = state.selection;
+    document.querySelector('.selection-strip').classList.toggle('empty-selection', !selected);
     $('selection-name').textContent = selected ? selected.name || 'Selected gear' : 'No managed gear selected';
     $('selection-help').textContent = selected ? selected.stale ? 'Parameters changed. Use Update from Parameters to rebuild.' : 'Existing definition available for editing or duplication.' : 'Select a Gear Studio body or component in Fusion to edit it.';
     $('selection-dot').classList.toggle('selected', Boolean(selected));
@@ -394,6 +405,7 @@
     setFooter('Renaming parameters', 'Keeping the current gear geometry and expression references.', 'busy');
     send('renameParameters');
   });
+  $('close-field-help').addEventListener('click', () => $('field-help-dialog').close());
   $('open-guide').addEventListener('click', () => $('guide-dialog').showModal());
   $('close-guide').addEventListener('click', () => $('guide-dialog').close());
   $('save-preset').addEventListener('click', () => { if (!state.valid || state.busy) return; $('preset-name').value = state.spec.name || ''; $('preset-dialog').showModal(); $('preset-name').focus(); $('preset-name').select(); });

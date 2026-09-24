@@ -87,6 +87,16 @@ class BuilderLifecycleTests(unittest.TestCase):
         self.assertIs(self.scratch.closed_with, False)
         self.assertIs(self.app.activeDocument, self.source)
 
+    def test_sketch_solver_failure_does_not_tell_user_to_change_valid_gear_inputs(self):
+        def fail(*_):
+            raise builder.SketchConstraintError("Sketch 'Pitch circle': driving diameter failed.")
+        with self.assertRaises(builder.BuildError) as raised:
+            self.build(generate=fail)
+        self.assertIn("Pitch circle", str(raised.exception))
+        self.assertNotIn("Reduce face width", str(raised.exception))
+        self.assertIs(self.scratch.closed_with, False)
+        self.assertIs(self.app.activeDocument, self.source)
+
     def test_part_intent_scratch_is_changed_to_hybrid_before_generation(self):
         self.design.designIntent = 0
         self.adsk.fusion.DesignIntentTypes = SimpleNamespace(HybridDesignIntentType=2)

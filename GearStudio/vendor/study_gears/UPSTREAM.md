@@ -15,6 +15,8 @@ requirement at runtime.
 
 ## Local changes
 
+- 0.3.3 separates the shaft reference into an XZ sketch and keeps the pitch circle in XY. Wrapper and pitch circles fix only their centers, retain driving diameters, and verify evaluated radius/diameter instead of gating on the aggregate circle constraint flag. Other sketch points/curves remain constrained. This follows a reported 0.3.2 native build failure; native confirmation of the correction is pending.
+
 - Every explicit numerical loop has a cooperative `checkpoint()`. Feature helpers
   also check before entering native operations. The caller applies a wall-clock
   budget and an iteration budget, and pumps cancellation between operations.

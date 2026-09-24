@@ -2,6 +2,14 @@
 
 Changes describe source capabilities. Native Fusion verification is tracked separately in [docs/VERIFICATION.md](docs/VERIFICATION.md).
 
+## 0.3.3 circle verification and simpler parameter UI - 2026-09-24
+
+- Replace the reported circle constraint-flag gate with fixed-center, driving-dimension, evaluated-diameter and actual-radius checks. Keep all other curve/point checks. Separate the planar pitch circle from the shaft reference sketch. The cause of Fusion's reported flag remains unconfirmed; native retest is required.
+- Report sketch construction failures with the sketch name, without telling users to reduce otherwise valid gear inputs.
+- Replace hover-only information indicators with accessible click/keyboard help dialogs. Keep field descriptions available to assistive technology without repeating them below every input.
+- Show primary size and fit inputs by default; collapse tooth settings and detailed measurements. Automatically reveal invalid fields and simplify empty selection controls. Preserve input values and existing design tokens.
+- Add regression coverage, beginner troubleshooting and the native acceptance checklist. 175 Python tests and browser checks pass; native Fusion verification remains pending.
+
 ## 0.3.2 constrained sketches and a parameter-driven bore - 2026-09-18
 
 - Bore sketches now have a local-origin coincidence and a driving diameter linked to the gear's saved bore parameter, such as `Bore_G1`. Ring/web circles receive centered driving dimensions too. Native circle/affected cylindrical sketch checks reject unresolved sketch freedom before committing.

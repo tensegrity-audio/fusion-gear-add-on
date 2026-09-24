@@ -91,7 +91,15 @@ input::placeholder { color: var(--muted); }
 .field { min-width: 0; }
 .field-label-row { display: flex; align-items: center; justify-content: space-between; gap: 5px; }
 .field-label-row label { line-height: 1.4; }
-.info-tip { width: 14px; height: 14px; flex-shrink: 0; text-align: center; line-height: 12px; border: 1px solid #6a7557; border-radius: 50%; font: 10px/12px Georgia, serif; color: var(--muted); margin-bottom: 6px; cursor: help; }
+.info-tip { width: 28px; height: 28px; flex-shrink: 0; padding: 0; text-align: center; border: 1px solid #6a7557; border-radius: 50%; background: transparent; font: 14px/26px Georgia, serif; color: var(--text); cursor: pointer; }
+.info-tip:hover { border-color: var(--accent); color: var(--accent); }
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.empty-selection .selection-actions, .empty-selection .selection-dot, .empty-selection #selection-name { display: none; }
+.empty-selection.selection-strip { background: transparent; border: 0; padding: 0; margin-bottom: 16px; }
+#field-help-dialog { width: min(460px, calc(100vw - 32px)); }
+#field-help-dialog p { font-size: 14px; line-height: 1.65; }
+#field-help-example { color: var(--muted); }
+.metrics-section > summary { cursor: pointer; padding: 12px 0; font-weight: 600; }
 .input-wrap { position: relative; }
 .input-wrap input { padding-right: 31px; }
 .input-unit { position: absolute; right: 8px; top: 9px; color: var(--muted); font-size: 10px; pointer-events: none; }

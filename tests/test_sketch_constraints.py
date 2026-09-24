@@ -22,6 +22,8 @@ class Point:
     @property
     def isFullyConstrained(self):
         return self.isFixed or (self.coincident is not None and self.coincident.isFullyConstrained)
+    @property
+    def geometry(self): return SimpleNamespace(x=self.position[0], y=self.position[1], z=self.position[2])
 
 
 class Circle:
@@ -79,7 +81,7 @@ class Sketch:
             raise RuntimeError('Fix and a driving diameter overconstrain the circle')
         if not isDriving:
             raise RuntimeError('A measurement cannot control this diameter')
-        dimension = SimpleNamespace(parameter=SimpleNamespace(expression=''), attributes=Attributes())
+        dimension = SimpleNamespace(parameter=SimpleNamespace(expression='', value=2 * circle.radius), attributes=Attributes(), isDriving=True)
         circle.dimension = dimension; self.dimensions.append(dimension)
         return dimension
     @property
@@ -91,7 +93,8 @@ class SketchConstraintTests(unittest.TestCase):
     def test_bore_has_local_center_and_live_named_diameter_without_fixed_radius(self):
         sketch = Sketch()
         circle = sc.centered_circle(sketch, .25, point3d, 'Bore_G7', 'bore')
-        self.assertIs(circle.centerSketchPoint.coincident, sketch.originPoint)
+        self.assertTrue(circle.centerSketchPoint.isFixed)
+        self.assertEqual(circle.centerSketchPoint.position, (0, 0, 0))
         self.assertEqual(circle.dimension.parameter.expression, 'Bore_G7')
         self.assertEqual(circle.dimension.attributes.itemByName(sc.ATTRIBUTE_GROUP, sc.DIAMETER_INPUT).value, 'bore')
         self.assertFalse(circle.isFixed)
@@ -123,11 +126,41 @@ class SketchConstraintTests(unittest.TestCase):
 
     def test_constraint_failure_or_solver_free_geometry_cannot_be_committed(self):
         sketch = Sketch()
-        sketch.geometricConstraints.addCoincident = lambda *args: None
+        create = sketch.sketchCurves.sketchCircles.addByCenterRadius
+        sketch.sketchCurves.sketchCircles.addByCenterRadius = lambda center, radius: create((1, 0, 0), radius)
         with self.assertRaisesRegex(RuntimeError, 'local origin'):
             sc.centered_circle(sketch, .25, point3d)
-        with self.assertRaisesRegex(RuntimeError, 'not fully constrained'):
+        with self.assertRaisesRegex(RuntimeError, 'unconstrained'):
             sc.require_constrained(sketch)
+
+    def test_false_aggregate_circle_status_does_not_reject_verified_driving_geometry(self):
+        class FalseStatusCircle(Circle):
+            @property
+            def isFullyConstrained(self): return False
+        sketch = Sketch()
+        def create(center, radius):
+            circle = FalseStatusCircle(center, radius)
+            sketch.sketchCurves.append(circle)
+            sketch.sketchPoints.append(circle.centerSketchPoint)
+            return circle
+        sketch.sketchCurves.sketchCircles.addByCenterRadius = create
+        circle = sc.centered_circle(sketch, .25, point3d, 'Bore_G7', 'bore')
+        self.assertFalse(sketch.isFullyConstrained)
+        sc.require_constrained(sketch, (circle,))
+        self.assertFalse(circle.isFixed, 'The radius must remain dimension-driven.')
+        sketch.sketchPoints.append(Point((2, 3, 0)))
+        with self.assertRaisesRegex(sc.SketchConstraintError, 'point remains unconstrained'):
+            sc.require_constrained(sketch, (circle,))
+
+    def test_wrong_evaluated_diameter_is_rejected_even_with_a_good_status_flag(self):
+        sketch = Sketch(); create = sketch.diameter
+        def wrong(*args, **kwargs):
+            dimension = create(*args, **kwargs)
+            dimension.parameter.value = 99
+            return dimension
+        sketch.sketchDimensions.addDiameterDimension = wrong
+        with self.assertRaisesRegex(sc.SketchConstraintError, 'requested driving diameter'):
+            sc.centered_circle(sketch, .25, point3d)
 
     def test_missing_driving_dimension_and_deferred_solving_fail_explicitly(self):
         sketch = Sketch()

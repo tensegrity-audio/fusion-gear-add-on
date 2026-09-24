@@ -117,6 +117,12 @@ Both edit paths rebuild and validate the complete B-rep solid. In 0.3.2, an exis
 
 For validation before geometry changes, use **Gear Studio > Edit > Update gear**. Fusion applies direct parameter-table edits immediately to the bore, before Gear Studio can check them. If an impossible diameter produces a failed feature, Undo the table edit or restore a valid diameter. Use the Gear Studio panel when adding/removing the bore (0 mm), or changing tooth size and bore size together.
 
+## Circle build error and parameter help
+
+If a build reports **"The generated diameter or center is still unconstrained"**, update to **0.3.3**. This is a 0.3.2 construction-check regression; reducing tooth count or changing the default dimensions is not the remedy. Save your designs, fully quit Fusion, update the exact folder shown in Scripts and Add-Ins, and restart. Open Gear Studio > Getting started and verify **0.3.3** and the intended Documents path. Test a default Spur in a new Hybrid design first. If it still fails, send the complete new message, Fusion version, gear family/settings and loaded add-in path.
+
+Click an **i** button for parameter help; Enter/Space also opens it. Close or Escape returns to the input area without changing values. **Tooth settings**, **Advanced tooth geometry** and **Geometry measurements** are expandable. Invalid hidden fields open automatically, so a collapsed section cannot hide an input error.
+
 ## Move a gear with its sketches
 
 1. Finish any active sketch or feature edit. Activate the top-level design using the radio button next to its name in the Browser.
@@ -130,10 +136,10 @@ Keep your own sketches and downstream modifications outside the generated Constr
 ### Upgrade loose sketches in an existing gear
 
 1. Save the design and **fully close Fusion**. Replace the loaded add-in folder using the update instructions below.
-2. Restart Fusion. In Gear Studio's **Getting started**, confirm **0.3.2** and your Documents installation path.
+2. Restart Fusion. In Gear Studio's **Getting started**, confirm **0.3.3** and your Documents installation path.
 3. Select the existing gear, refresh selection, choose **Edit**, then **Update gear**. This rebuilds its generated sketches with constraints and preserves the outer component's placement. Simply restarting does not rewrite old geometry.
-4. Expand **Construction > ... > Gear body and sketches > Sketches**. Edit **Shaft bore cutter profile**. Its center should stay on the local origin, its diameter expression should reference `Bore_G1` (or your gear's alias), and it should report fully constrained. Finish Sketch.
-5. Inspect **Pitch circle and shaft axis** and **Tooth groove profile** for a cylindrical gear. The shaft line is construction geometry with locked endpoints, and generated profiles should not drag or stretch. Their calculated shape changes through Gear Studio inputs and Update gear.
+4. Expand **Construction > ... > Gear body and sketches > Sketches**. Edit **Shaft bore cutter profile**. Its center should stay on the local origin, its diameter expression should reference `Bore_G1` (or your gear's alias), and it should resist center/radius dragging. Finish Sketch.
+5. Inspect **Pitch circle**, **Shaft axis** and **Tooth groove profile** for a cylindrical gear. The shaft line is construction geometry with locked endpoints, and generated profiles should not drag or stretch. Their calculated shape changes through Gear Studio inputs and Update gear.
 6. Move the **outer component**, not individual sketch entities or the body. The component is intentionally free to position within the assembly even though the sketches inside it are constrained to their local origin.
 
 ### Existing gears with only a Base Feature
@@ -144,7 +150,7 @@ They remain editable through the legacy update path. Their discarded constructio
 
 1. Save your Fusion designs and close Fusion completely so Python modules and cached icons unload.
 2. Follow the update instructions below for your existing Documents installation. Keep only one linked GearStudio copy; do not accidentally run an older copy from Downloads or the optional installer directory.
-3. Start Fusion, run GearStudio, and open **Getting started**. Confirm **Gear Studio 0.3.2** and the intended Documents path.
+3. Start Fusion, run GearStudio, and open **Getting started**. Confirm **Gear Studio 0.3.3** and the intended Documents path.
 4. Create a new Hybrid design and a new default Helical gear, then a Herringbone gear. Check for full tooth spaces all around, a shaft bore, visible sketches and an expanded timeline group.
 5. Close the palette and reopen it from **Design > Solid > Create > Gear Studio**. It is also registered under **Utilities > Add-Ins**. Restart with Run on Startup enabled and check the command reappears without toggling the add-in. The palette need not open automatically on startup.
 

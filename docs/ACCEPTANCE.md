@@ -125,6 +125,13 @@ For each case, compare the existing component, source body, parameters and persi
 
 ## Release decision
 
+### 0.3.3 native regression follow-up
+
+- [ ] Record exact Fusion version and installed path. In a new Hybrid design, default Spur, Helical and Herringbone create without the reported circle-status error. Inspect separate Pitch circle (XY) and Shaft axis (XZ) sketches.
+- [ ] Bore center cannot move in XYZ; circle radius changes only through its driving expression. Measure a 5 mm bore, change the named parameter to 6 mm, and measure again. Move the outer component and confirm the sketches remain aligned. Update, save/reopen and Undo/Redo preserve the binding.
+- [ ] Repeat ring blank and crown backing-web creation because these share the circle helper. Injected automated wrong-value tests do not replace native measurement.
+- [ ] In Fusion's palette, click an i indicator and use Enter/Space, Close and Escape. Check full explanation/default, focus return and draft preservation. Resize the palette and confirm module, teeth, width and bore remain readable. Hidden input errors must open their settings section.
+
 Record the host-tested subset, unresolved failures and exact Fusion builds. Until the full matrix is executed, describe the package as an implementation for evaluation with live Fusion verification pending. A preview screenshot, passing Python tests or successful creation of one spur gear is not evidence that all 13 variants and both update paths work in Fusion.
 
 ## 0.3.0 mandatory native regression checks
